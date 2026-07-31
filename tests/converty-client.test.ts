@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   authorizationUrl,
+  convertyImageUrl,
   exchangeAuthorizationCode,
   storeInfoWithToken,
 } from "../src/server/converty";
@@ -86,5 +87,19 @@ describe("Converty OAuth contract", () => {
     expect(fetchMock.mock.calls[0][0]).toBe(
       "https://api.converty.shop/api/v1/stores/me"
     );
+  });
+
+  it("normalizes Converty responsive store logos to one database URL", () => {
+    expect(
+      convertyImageUrl({
+        sm: "https://cdn.converty.shop/logo_sm.webp",
+        md: "https://cdn.converty.shop/logo_md.webp",
+        lg: "https://cdn.converty.shop/logo_lg.webp",
+      })
+    ).toBe("https://cdn.converty.shop/logo_lg.webp");
+    expect(convertyImageUrl("https://cdn.converty.shop/logo.webp")).toBe(
+      "https://cdn.converty.shop/logo.webp"
+    );
+    expect(convertyImageUrl(undefined)).toBeNull();
   });
 });

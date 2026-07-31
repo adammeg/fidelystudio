@@ -3,6 +3,7 @@ import { connectDatabase } from "@/server/db";
 import { StudioConvertyConnection, StudioOAuthState, StudioUser } from "@/server/models";
 import {
   convertyScopes,
+  convertyImageUrl,
   encryptedTokenRecord,
   exchangeAuthorizationCode,
   studioAppUrl,
@@ -54,7 +55,7 @@ export async function GET(req: NextRequest) {
         email: store.user?.email || null,
         shopName: store.name,
         ownerName,
-        logoUrl: store.logo || null,
+        logoUrl: convertyImageUrl(store.logo),
         currency: store.currency || "DZD",
         country: store.country || null,
       },

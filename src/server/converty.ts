@@ -189,11 +189,28 @@ export async function storeInfoWithToken(accessToken: string) {
     name: string;
     slug?: string;
     domain?: string;
-    logo?: string;
+    logo?: string | {
+      sm?: string;
+      md?: string;
+      lg?: string;
+      url?: string;
+    };
     currency?: string;
     country?: string;
     user?: { email?: string; firstname?: string; lastname?: string };
   };
+}
+
+export function convertyImageUrl(
+  image:
+    | string
+    | { sm?: string; md?: string; lg?: string; url?: string }
+    | null
+    | undefined
+) {
+  if (typeof image === "string") return image || null;
+  if (!image || typeof image !== "object") return null;
+  return image.lg || image.md || image.sm || image.url || null;
 }
 
 export function encryptedTokenRecord(tokens: {
