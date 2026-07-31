@@ -4,13 +4,35 @@ const BASE_URL = "https://partner.converty.shop";
 const TOKEN_BUFFER_MS = 5 * 60 * 1000;
 const MAX_RETRIES = 3;
 
-export const CONVERTY_SCOPES = [
+export const CONVERTY_BASE_SCOPES = [
   "read-stores",
   "read-orders",
+] as const;
+
+export const CONVERTY_WEBHOOK_SCOPES = [
   "read-hooks",
   "create-hooks",
   "delete-hooks",
 ] as const;
+
+const ALLOWED_SCOPES = new Set<string>([
+  ...CONVERTY_BASE_SCOPES,
+  ...CONVERTY_WEBHOOK_SCOPES,
+]);
+
+export function convertyScopes() {
+  const configured = process.env.CONVERTY_SCOPES?.trim();
+  if (!configured) return [...CONVERTY_BASE_SCOPES];
+  const scopes = [...new Set(configured.split(/[\s,]+/).filter(Boolean))];
+  const invalid = scopes.filter((scope) => !ALLOWED_SCOPES.has(scope));
+  if (invalid.length) throw new Error(`Unsupported Converty scope: ${invalid.join(", ")}`);
+  for (const required of CONVERTY_BASE_SCOPES) {
+    if (!scopes.includes(required)) {
+      throw new Error(`CONVERTY_SCOPES must include ${required}`);
+    }
+  }
+  return scopes;
+}
 
 function env(name: string) {
   const value = process.env[name];
@@ -80,7 +102,7 @@ export function authorizationUrl(state: string) {
     response_type: "code",
     client_id: env("CONVERTY_CLIENT_ID"),
     redirect_uri: convertyRedirectUri(),
-    scope: CONVERTY_SCOPES.join(" "),
+    scope: convertyScopes().join(" "),
     state,
   });
   return `${BASE_URL}/oauth2/authorize?${params}`;

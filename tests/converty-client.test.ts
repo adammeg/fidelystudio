@@ -11,6 +11,7 @@ describe("Converty OAuth contract", () => {
     process.env.CONVERTY_REDIRECT_URI =
       "https://www.fidelystudio.shop/api/auth/converty/callback";
     process.env.STUDIO_APP_URL = "https://www.fidelystudio.shop";
+    delete process.env.CONVERTY_SCOPES;
     vi.restoreAllMocks();
   });
 
@@ -24,15 +25,10 @@ describe("Converty OAuth contract", () => {
     expect(url.searchParams.get("redirect_uri")).toBe(
       "https://www.fidelystudio.shop/api/auth/converty/callback"
     );
-    expect(url.searchParams.get("scope")?.split(" ")).toEqual(
-      expect.arrayContaining([
-        "read-stores",
-        "read-orders",
-        "read-hooks",
-        "create-hooks",
-        "delete-hooks",
-      ])
-    );
+    expect(url.searchParams.get("scope")?.split(" ")).toEqual([
+      "read-stores",
+      "read-orders",
+    ]);
   });
 
   it("exchanges codes using form encoding and server-only credentials", async () => {
@@ -69,5 +65,12 @@ describe("Converty OAuth contract", () => {
     expect(() => authorizationUrl("csrf-state")).toThrow(
       "must match the canonical app URL exactly"
     );
+  });
+
+  it("allows webhook scopes only when explicitly configured", () => {
+    process.env.CONVERTY_SCOPES =
+      "read-stores read-orders read-hooks create-hooks delete-hooks";
+    const url = new URL(authorizationUrl("csrf-state"));
+    expect(url.searchParams.get("scope")?.split(" ")).toContain("create-hooks");
   });
 });

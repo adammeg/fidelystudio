@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { connectDatabase } from "@/server/db";
 import { StudioConvertyConnection, StudioOAuthState, StudioUser } from "@/server/models";
 import {
-  CONVERTY_SCOPES,
+  convertyScopes,
   encryptedTokenRecord,
   exchangeAuthorizationCode,
   studioAppUrl,
@@ -72,7 +72,7 @@ export async function GET(req: NextRequest) {
       {
         convertyStoreId: String(store._id),
         ...encryptedTokenRecord(tokens),
-        scopes: [...CONVERTY_SCOPES],
+        scopes: convertyScopes(),
         storeName: store.name,
         storeSlug: store.slug || null,
         storeDomain: store.domain || null,
@@ -87,15 +87,31 @@ export async function GET(req: NextRequest) {
 
     const session = await createSession(String(user._id));
     const destination = appUrl("/settings?converty=connected");
+    const setupMessages: string[] = [];
     try {
-      await setupWebhooksForUser(String(user._id));
       await syncOrdersForUser(String(user._id));
+    } catch (syncError) {
+      setupMessages.push(
+        syncError instanceof Error
+          ? `Initial order sync needs attention: ${syncError.message}`
+          : "Initial order sync needs attention."
+      );
+    }
+    try {
+      if (convertyScopes().includes("create-hooks")) {
+        await setupWebhooksForUser(String(user._id));
+      }
     } catch (setupError) {
+      setupMessages.push(
+        setupError instanceof Error
+          ? `Webhook setup needs attention: ${setupError.message}`
+          : "Webhook setup needs attention."
+      );
+    }
+    if (setupMessages.length) {
       destination.searchParams.set(
         "message",
-        setupError instanceof Error
-          ? `Connected, but initial sync needs attention: ${setupError.message}`
-          : "Connected, but initial sync needs attention."
+        `Connected. ${setupMessages.join(" ")}`
       );
     }
     const res = NextResponse.redirect(destination);

@@ -105,6 +105,13 @@ export async function syncOrdersForUser(userId: string, maxPages = 20) {
 export async function setupWebhooksForUser(userId: string) {
   const connection = await StudioConvertyConnection.findOne({ user: userId });
   if (!connection) throw new Error("Converty is not connected");
+  const required = ["read-hooks", "create-hooks", "delete-hooks"];
+  if (!required.every((scope) => connection.scopes.includes(scope))) {
+    throw Object.assign(
+      new Error("Webhook access is not enabled for this Converty integration"),
+      { status: 403 }
+    );
+  }
   const base = studioAppUrl();
   const targetUrl = `${base}/api/converty/webhooks/${decryptSecret(connection.webhookSecret)}`;
   const result = await convertyApi<{
