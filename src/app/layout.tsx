@@ -19,6 +19,9 @@ export default async function RootLayout({
         {/* Static by design: isolates the public presentation from Turbopack's app CSS chunk. */}
         {/* eslint-disable-next-line @next/next/no-css-tags */}
         <link rel="stylesheet" href="/landing-v2.css" />
+        {/* Static by design: stable authenticated UI styles in dev and production. */}
+        {/* eslint-disable-next-line @next/next/no-css-tags */}
+        <link rel="stylesheet" href="/studio-v2.css" />
       </head>
       <body>{children}</body>
     </html>
