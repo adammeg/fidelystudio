@@ -5,6 +5,7 @@ import {
   CONVERTY_SCOPES,
   encryptedTokenRecord,
   exchangeAuthorizationCode,
+  studioAppUrl,
   storeInfoWithToken,
 } from "@/server/converty";
 import { createSession, SESSION_COOKIE } from "@/server/auth";
@@ -12,7 +13,7 @@ import { decryptSecret, encryptSecret, randomToken, sha256 } from "@/server/secu
 import { setupWebhooksForUser, syncOrdersForUser } from "@/server/converty-sync";
 
 const appUrl = (path: string) =>
-  new URL(path, process.env.STUDIO_APP_URL || "http://localhost:3000");
+  new URL(path, studioAppUrl());
 
 export async function GET(req: NextRequest) {
   const oauthError = req.nextUrl.searchParams.get("error");

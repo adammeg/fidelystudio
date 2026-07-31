@@ -9,7 +9,8 @@ describe("Converty OAuth contract", () => {
     process.env.CONVERTY_CLIENT_ID = "client-id";
     process.env.CONVERTY_CLIENT_SECRET = "client-secret";
     process.env.CONVERTY_REDIRECT_URI =
-      "https://fidelystudio.shop/api/auth/converty/callback";
+      "https://www.fidelystudio.shop/api/auth/converty/callback";
+    process.env.STUDIO_APP_URL = "https://www.fidelystudio.shop";
     vi.restoreAllMocks();
   });
 
@@ -20,6 +21,9 @@ describe("Converty OAuth contract", () => {
     expect(url.searchParams.get("response_type")).toBe("code");
     expect(url.searchParams.get("client_id")).toBe("client-id");
     expect(url.searchParams.get("state")).toBe("csrf-state");
+    expect(url.searchParams.get("redirect_uri")).toBe(
+      "https://www.fidelystudio.shop/api/auth/converty/callback"
+    );
     expect(url.searchParams.get("scope")?.split(" ")).toEqual(
       expect.arrayContaining([
         "read-stores",
@@ -54,5 +58,16 @@ describe("Converty OAuth contract", () => {
     expect(body.get("code")).toBe("single-use-code");
     expect(body.get("client_id")).toBe("client-id");
     expect(body.get("client_secret")).toBe("client-secret");
+    expect(body.get("redirect_uri")).toBe(
+      "https://www.fidelystudio.shop/api/auth/converty/callback"
+    );
+  });
+
+  it("rejects redirect configuration that differs from the canonical origin", () => {
+    process.env.CONVERTY_REDIRECT_URI =
+      "https://fidelystudio.shop/api/auth/converty/callback";
+    expect(() => authorizationUrl("csrf-state")).toThrow(
+      "must match the canonical app URL exactly"
+    );
   });
 });

@@ -1,4 +1,4 @@
-import { convertyApi } from "./converty";
+import { convertyApi, studioAppUrl } from "./converty";
 import { StudioConvertyConnection, StudioCustomer, StudioOrder } from "./models";
 import { decryptSecret } from "./security";
 
@@ -105,7 +105,7 @@ export async function syncOrdersForUser(userId: string, maxPages = 20) {
 export async function setupWebhooksForUser(userId: string) {
   const connection = await StudioConvertyConnection.findOne({ user: userId });
   if (!connection) throw new Error("Converty is not connected");
-  const base = (process.env.STUDIO_APP_URL || "http://localhost:3000").replace(/\/$/, "");
+  const base = studioAppUrl();
   const targetUrl = `${base}/api/converty/webhooks/${decryptSecret(connection.webhookSecret)}`;
   const result = await convertyApi<{
     data?: { _id: string; targetUrl: string; event: string }[];

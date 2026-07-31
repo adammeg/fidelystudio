@@ -18,6 +18,21 @@ function env(name: string) {
   return value;
 }
 
+export function studioAppUrl() {
+  return env("STUDIO_APP_URL").replace(/\/+$/, "");
+}
+
+export function convertyRedirectUri() {
+  const expected = `${studioAppUrl()}/api/auth/converty/callback`;
+  const configured = process.env.CONVERTY_REDIRECT_URI?.replace(/\/+$/, "");
+  if (configured && configured !== expected) {
+    throw new Error(
+      `CONVERTY_REDIRECT_URI must match the canonical app URL exactly. Expected ${expected}`
+    );
+  }
+  return expected;
+}
+
 async function parseResponse(res: Response) {
   const data = await res.json().catch(() => ({}));
   if (res.ok) return data;
@@ -64,7 +79,7 @@ export function authorizationUrl(state: string) {
   const params = new URLSearchParams({
     response_type: "code",
     client_id: env("CONVERTY_CLIENT_ID"),
-    redirect_uri: env("CONVERTY_REDIRECT_URI"),
+    redirect_uri: convertyRedirectUri(),
     scope: CONVERTY_SCOPES.join(" "),
     state,
   });
@@ -72,7 +87,11 @@ export function authorizationUrl(state: string) {
 }
 
 export function exchangeAuthorizationCode(code: string) {
-  return tokenRequest({ grant_type: "authorization_code", code });
+  return tokenRequest({
+    grant_type: "authorization_code",
+    code,
+    redirect_uri: convertyRedirectUri(),
+  });
 }
 
 export function refreshTokens(refreshToken: string) {
