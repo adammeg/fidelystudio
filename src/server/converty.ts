@@ -188,15 +188,15 @@ export async function storeInfoWithToken(accessToken: string) {
     _id: string;
     name: string;
     slug?: string;
-    domain?: string;
+    domain?: string | { url?: string; host?: string; domain?: string };
     logo?: string | {
       sm?: string;
       md?: string;
       lg?: string;
       url?: string;
     };
-    currency?: string;
-    country?: string;
+    currency?: string | { code?: string; name?: string; symbol?: string; num?: number; decimals?: number };
+    country?: string | { code?: string; iso2?: string; name?: string };
     user?: { email?: string; firstname?: string; lastname?: string };
   };
 }
@@ -211,6 +211,31 @@ export function convertyImageUrl(
   if (typeof image === "string") return image || null;
   if (!image || typeof image !== "object") return null;
   return image.lg || image.md || image.sm || image.url || null;
+}
+
+export function convertyCurrencyCode(
+  currency:
+    | string
+    | { code?: string; name?: string; symbol?: string; num?: number; decimals?: number }
+    | null
+    | undefined
+) {
+  if (typeof currency === "string") return currency || "TND";
+  return currency?.code || "TND";
+}
+
+export function convertyCountryCode(
+  country: string | { code?: string; iso2?: string; name?: string } | null | undefined
+) {
+  if (typeof country === "string") return country || null;
+  return country?.code || country?.iso2 || country?.name || null;
+}
+
+export function convertyDomain(
+  domain: string | { url?: string; host?: string; domain?: string } | null | undefined
+) {
+  if (typeof domain === "string") return domain || null;
+  return domain?.url || domain?.host || domain?.domain || null;
 }
 
 export function encryptedTokenRecord(tokens: {

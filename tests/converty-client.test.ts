@@ -2,6 +2,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   authorizationUrl,
   convertyImageUrl,
+  convertyCurrencyCode,
+  convertyCountryCode,
+  convertyDomain,
   exchangeAuthorizationCode,
   storeInfoWithToken,
 } from "../src/server/converty";
@@ -101,5 +104,21 @@ describe("Converty OAuth contract", () => {
       "https://cdn.converty.shop/logo.webp"
     );
     expect(convertyImageUrl(undefined)).toBeNull();
+  });
+
+  it("normalizes structured Converty store metadata", () => {
+    expect(
+      convertyCurrencyCode({
+        code: "TND",
+        name: "Tunisian Dinar",
+        symbol: "DT",
+        num: 788,
+        decimals: 3,
+      })
+    ).toBe("TND");
+    expect(convertyCountryCode({ code: "TN", name: "Tunisia" })).toBe("TN");
+    expect(convertyDomain({ host: "store.example.com" })).toBe(
+      "store.example.com"
+    );
   });
 });

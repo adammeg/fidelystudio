@@ -4,6 +4,9 @@ import { StudioConvertyConnection, StudioOAuthState, StudioUser } from "@/server
 import {
   convertyScopes,
   convertyImageUrl,
+  convertyCurrencyCode,
+  convertyCountryCode,
+  convertyDomain,
   encryptedTokenRecord,
   exchangeAuthorizationCode,
   studioAppUrl,
@@ -56,8 +59,8 @@ export async function GET(req: NextRequest) {
         shopName: store.name,
         ownerName,
         logoUrl: convertyImageUrl(store.logo),
-        currency: store.currency || "DZD",
-        country: store.country || null,
+        currency: convertyCurrencyCode(store.currency),
+        country: convertyCountryCode(store.country),
       },
       { new: true, upsert: true, setDefaultsOnInsert: true }
     );
@@ -76,9 +79,9 @@ export async function GET(req: NextRequest) {
         scopes: convertyScopes(),
         storeName: store.name,
         storeSlug: store.slug || null,
-        storeDomain: store.domain || null,
-        currency: store.currency || "DZD",
-        country: store.country || null,
+        storeDomain: convertyDomain(store.domain),
+        currency: convertyCurrencyCode(store.currency),
+        country: convertyCountryCode(store.country),
         webhookSecret: encryptSecret(webhookSecret),
         webhookSecretHash: sha256(webhookSecret),
         connectedAt: new Date(),
