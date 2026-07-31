@@ -20,6 +20,24 @@ export default async function LoginPage({
 
         {error && <div className="login-error">{error}</div>}
 
+        <form action="/api/auth/default" method="post" className="login-form default-login">
+          <label className="login-field">
+            <span>Email</span>
+            <input name="email" type="email" autoComplete="username" required />
+          </label>
+          <label className="login-field">
+            <span>Password</span>
+            <input name="password" type="password" autoComplete="current-password" required />
+          </label>
+          <button className="btn btn-secondary login-submit" type="submit">
+            Sign in to Studio
+          </button>
+        </form>
+
+        <div className="login-divider">
+          <span>or</span>
+        </div>
+
         <a className="btn btn-primary login-submit converty-login" href="/api/auth/converty/start">
           <span className="converty-mark">C</span>
           Continue with Converty

@@ -10,6 +10,7 @@ const UserSchema = new Schema(
     currency: { type: String, default: "DZD" },
     country: { type: String, default: null },
     role: { type: String, enum: ["shop"], default: "shop" },
+    passwordHash: { type: String, default: null, select: false },
   },
   { timestamps: true }
 );
@@ -26,6 +27,7 @@ const SessionSchema = new Schema(
 const OAuthStateSchema = new Schema(
   {
     stateHash: { type: String, required: true, unique: true, index: true },
+    user: { type: Schema.Types.ObjectId, ref: "StudioUser", default: null },
     expiresAt: { type: Date, required: true, index: { expireAfterSeconds: 0 } },
   },
   { timestamps: true }
@@ -45,6 +47,8 @@ const ConvertyConnectionSchema = new Schema(
     currency: { type: String, default: "DZD" },
     country: { type: String, default: null },
     webhookIds: { type: [String], default: [] },
+    webhookSecret: { type: String, required: true },
+    webhookSecretHash: { type: String, required: true, unique: true, index: true },
     lastSyncAt: { type: Date, default: null },
     connectedAt: { type: Date, default: Date.now },
   },

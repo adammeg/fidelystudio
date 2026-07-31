@@ -23,6 +23,11 @@ campaigns. It does not require `fidely-back`.
 
 7. Open `http://localhost:3000/login` and choose **Continue with Converty**.
 
+The optional default merchant account is configured with
+`DEFAULT_USER_EMAIL`, `DEFAULT_USER_PASSWORD`, and
+`DEFAULT_USER_SHOP_NAME`. On its first successful login, Fidely creates the
+account in MongoDB and stores only a scrypt password hash.
+
 The first successful authorization creates the Fidely merchant account, stores
 the Converty tokens encrypted with AES-256-GCM, registers order webhooks, and
 imports the store's orders and customers.
@@ -36,6 +41,9 @@ CONVERTY_CLIENT_ID=
 CONVERTY_CLIENT_SECRET=
 CONVERTY_REDIRECT_URI=https://studio.example.com/api/auth/converty/callback
 STUDIO_APP_URL=https://studio.example.com
+DEFAULT_USER_EMAIL=admin@studio.example.com
+DEFAULT_USER_PASSWORD=replace-with-a-strong-initial-password
+DEFAULT_USER_SHOP_NAME=Fidely Studio
 ```
 
 Converty requires webhook targets to use the same origin as a registered

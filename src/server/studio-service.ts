@@ -9,6 +9,7 @@ import {
   StudioOrder,
   StudioUser,
 } from "./models";
+import { isUnsupportedStudioApi } from "@/lib/features";
 
 const referralDefaults = {
   enabled: true,
@@ -69,10 +70,14 @@ function trend(values: number[]) {
 }
 
 function series(values: number[]) {
+  const safeValues = values.map((value) => {
+    const numeric = Number(value);
+    return Number.isFinite(numeric) ? numeric : 0;
+  });
   return {
-    v: values.map((value) => Math.round(value)),
-    total: Math.round(values.reduce((sum, value) => sum + value, 0)),
-    trend: trend(values),
+    v: safeValues.map((value) => Math.round(value)),
+    total: Math.round(safeValues.reduce((sum, value) => sum + value, 0)),
+    trend: trend(safeValues),
   };
 }
 
@@ -152,6 +157,9 @@ function campaignJson(campaign: CampaignRecord) {
 export async function studioGet(userId: string, path: string, search = new URLSearchParams()) {
   await connectDatabase();
   const clean = path.replace(/^\/+|\/+$/g, "");
+  if (isUnsupportedStudioApi(clean)) {
+    throw Object.assign(new Error("This feature is not available yet"), { status: 404 });
+  }
 
   if (clean === "converty/status") {
     const connection = await StudioConvertyConnection.findOne({ user: userId }).lean();
@@ -341,15 +349,15 @@ export async function studioGet(userId: string, path: string, search = new URLSe
     for (let index = 0; index < days; index += 1) {
       const date = new Date(start);
       date.setDate(start.getDate() + index);
-      labels.push(date.toLocaleDateString("en", { month: "short", day: "numeric" }));
+      labels.push(date.toISOString().slice(0, 10));
     }
     for (const order of orders) {
       const index = Math.floor((new Date(order.placedAt).getTime() - start.getTime()) / 864e5);
       if (index < 0 || index >= days) continue;
       if (order.status === "delivered") {
-        salesValues[index] += order.amount || 0;
+        salesValues[index] += Number(order.amount) || 0;
         deliveredValues[index] += 1;
-        costValues[index] += order.cost || 0;
+        costValues[index] += Number(order.cost) || 0;
       }
     }
     for (const customer of customers) {

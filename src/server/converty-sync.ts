@@ -1,7 +1,8 @@
 import { convertyApi } from "./converty";
 import { StudioConvertyConnection, StudioCustomer, StudioOrder } from "./models";
+import { decryptSecret } from "./security";
 
-type ConvertyOrder = {
+export type ConvertyOrder = {
   _id: string;
   reference?: string | number;
   status?: string;
@@ -27,7 +28,7 @@ type ConvertyOrder = {
 
 type ConnectionDocument = InstanceType<typeof StudioConvertyConnection>;
 
-function normalizedStatus(order: ConvertyOrder) {
+export function normalizedStatus(order: ConvertyOrder) {
   if (order.archived) return "cancelled";
   const value = (order.status || "placed").toLowerCase();
   if (value === "rejected") return "refused";
@@ -35,7 +36,7 @@ function normalizedStatus(order: ConvertyOrder) {
   return value;
 }
 
-function deliveredAt(order: ConvertyOrder) {
+export function deliveredAt(order: ConvertyOrder) {
   const entry = [...(order.history || [])].reverse().find((item) => item.status === "delivered");
   if (entry?.timestamp) return new Date(entry.timestamp);
   return normalizedStatus(order) === "delivered"
@@ -105,7 +106,7 @@ export async function setupWebhooksForUser(userId: string) {
   const connection = await StudioConvertyConnection.findOne({ user: userId });
   if (!connection) throw new Error("Converty is not connected");
   const base = (process.env.STUDIO_APP_URL || "http://localhost:3000").replace(/\/$/, "");
-  const targetUrl = `${base}/api/converty/webhooks/${connection.convertyStoreId}`;
+  const targetUrl = `${base}/api/converty/webhooks/${decryptSecret(connection.webhookSecret)}`;
   const result = await convertyApi<{
     data?: { _id: string; targetUrl: string; event: string }[];
   }>(connection as ConnectionDocument, "/hooks");
@@ -130,4 +131,20 @@ export async function setupWebhooksForUser(userId: string) {
   connection.webhookIds = [...new Set(ids)];
   await connection.save();
   return { webhooksActive: connection.webhookIds.length === 2 };
+}
+
+export async function teardownWebhooksForUser(userId: string) {
+  const connection = await StudioConvertyConnection.findOne({ user: userId });
+  if (!connection) return;
+  for (const hookId of connection.webhookIds || []) {
+    try {
+      await convertyApi(connection as ConnectionDocument, `/hooks/unsubscribe/${hookId}`, {
+        method: "DELETE",
+      });
+    } catch {
+      // Disconnect must remain possible if Converty already removed a hook.
+    }
+  }
+  connection.webhookIds = [];
+  await connection.save();
 }

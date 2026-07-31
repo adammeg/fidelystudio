@@ -3,13 +3,16 @@ import { connectDatabase } from "@/server/db";
 import { StudioOAuthState } from "@/server/models";
 import { authorizationUrl } from "@/server/converty";
 import { randomToken, sha256 } from "@/server/security";
+import { getSessionUser } from "@/server/auth";
 
 export async function GET() {
   try {
     await connectDatabase();
     const state = randomToken(32);
+    const user = await getSessionUser().catch(() => null);
     await StudioOAuthState.create({
       stateHash: sha256(state),
+      user: user?._id || null,
       expiresAt: new Date(Date.now() + 5 * 60 * 1000),
     });
     return NextResponse.redirect(authorizationUrl(state));

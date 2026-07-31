@@ -104,7 +104,7 @@ export default function LoyaltyManager({ program }: { program: LoyaltyProgram })
           </thead>
           <tbody>
             {earnRules.map((r, i) => (
-              <tr key={r.name} className={r.active ? undefined : "row-inactive"}>
+              <tr key={`${r.name}-${i}`} className={r.active ? undefined : "row-inactive"}>
                 <td>
                   <div className="rule-nm">
                     <span className="rule-ic">{ruleIcon(r.icon)}</span>
@@ -156,7 +156,7 @@ export default function LoyaltyManager({ program }: { program: LoyaltyProgram })
           </thead>
           <tbody>
             {rewards.map((r, i) => (
-              <tr key={r.name} className={r.active ? undefined : "row-inactive"}>
+              <tr key={`${r.name}-${i}`} className={r.active ? undefined : "row-inactive"}>
                 <td>
                   <span className="pts-cell">
                     <span className="n">{r.cost}</span>

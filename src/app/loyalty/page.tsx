@@ -78,7 +78,7 @@ export default async function LoyaltyProgramPage() {
             </div>
             <div className="stat-list">
               {program.tiers.map((s, i) => (
-                <div className="stat-row" key={s.name}>
+                <div className="stat-row" key={`${s.name}-${i}`}>
                   <span className="sm" style={{ background: i === 0 ? "var(--bg-sunken)" : "#F0E2D8" }}>
                     {i === 0 ? (
                       <svg viewBox="0 0 24 24" fill="none" stroke="#7A6F63">

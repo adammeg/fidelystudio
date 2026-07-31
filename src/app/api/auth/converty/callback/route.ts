@@ -8,7 +8,7 @@ import {
   storeInfoWithToken,
 } from "@/server/converty";
 import { createSession, SESSION_COOKIE } from "@/server/auth";
-import { sha256 } from "@/server/security";
+import { decryptSecret, encryptSecret, randomToken, sha256 } from "@/server/security";
 import { setupWebhooksForUser, syncOrdersForUser } from "@/server/converty-sync";
 
 const appUrl = (path: string) =>
@@ -43,9 +43,13 @@ export async function GET(req: NextRequest) {
     const ownerName =
       [store.user?.firstname, store.user?.lastname].filter(Boolean).join(" ") || null;
 
+    const userLookup = consumed.user
+      ? { _id: consumed.user }
+      : { convertyStoreId: String(store._id) };
     const user = await StudioUser.findOneAndUpdate(
-      { convertyStoreId: String(store._id) },
+      userLookup,
       {
+        convertyStoreId: String(store._id),
         email: store.user?.email || null,
         shopName: store.name,
         ownerName,
@@ -56,6 +60,12 @@ export async function GET(req: NextRequest) {
       { new: true, upsert: true, setDefaultsOnInsert: true }
     );
 
+    const existingConnection = await StudioConvertyConnection.findOne({ user: user._id })
+      .select("webhookSecret webhookSecretHash")
+      .lean();
+    const webhookSecret = existingConnection?.webhookSecret
+      ? decryptSecret(existingConnection.webhookSecret)
+      : randomToken(32);
     await StudioConvertyConnection.findOneAndUpdate(
       { user: user._id },
       {
@@ -67,6 +77,8 @@ export async function GET(req: NextRequest) {
         storeDomain: store.domain || null,
         currency: store.currency || "DZD",
         country: store.country || null,
+        webhookSecret: encryptSecret(webhookSecret),
+        webhookSecretHash: sha256(webhookSecret),
         connectedAt: new Date(),
       },
       { upsert: true, new: true, setDefaultsOnInsert: true }

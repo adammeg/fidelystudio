@@ -250,8 +250,8 @@ export default function ConvertyManager({ initial, callbackStatus, callbackMessa
         <p className="muted" style={{ fontSize: 13.5, lineHeight: 1.5 }}>
 
           The server needs <code>CONVERTY_CLIENT_ID</code>, <code>CONVERTY_CLIENT_SECRET</code>,{" "}
-          <code>CONVERTY_REDIRECT_URI</code>, and <code>CONVERTY_TOKEN_ENCRYPTION_KEY</code> in{" "}
-          <code>fidely-back/.env</code> before shops can connect.
+          <code>CONVERTY_REDIRECT_URI</code>, and <code>TOKEN_ENCRYPTION_KEY</code> in{" "}
+          <code>studio-app/.env.local</code> before shops can connect.
 
         </p>
 

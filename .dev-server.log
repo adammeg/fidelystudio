@@ -1,0 +1,21 @@
+
+> studio-app@0.1.0 dev
+> next dev
+
+▲ Next.js 16.2.12 (Turbopack)
+- Local:         http://localhost:3000
+- Network:       http://192.168.56.1:3000
+- Environments: .env.local
+✓ Ready in 2.4s
+Creating turbopack project { dir: 'C:\\Users\\adamb\\fidely studio\\studio-app', testMode: true }
+
+○ Compiling / ...
+ GET / 200 in 1070ms (next.js: 98ms, proxy.ts: 218ms, application-code: 753ms)
+ GET / 200 in 8.4s (next.js: 5.5s, proxy.ts: 803ms, application-code: 2.1s)
+ GET / 200 in 1019ms (next.js: 516ms, proxy.ts: 103ms, application-code: 400ms)
+ GET /sw.js 404 in 1570ms (next.js: 1430ms, application-code: 140ms)
+ GET /sw.js 404 in 93ms (next.js: 12ms, application-code: 81ms)
+ GET / 200 in 230ms (next.js: 16ms, proxy.ts: 19ms, application-code: 196ms)
+ GET /sw.js 404 in 122ms (next.js: 14ms, application-code: 109ms)
+ GET /sw.js 404 in 115ms (next.js: 11ms, application-code: 104ms)
+[?25h

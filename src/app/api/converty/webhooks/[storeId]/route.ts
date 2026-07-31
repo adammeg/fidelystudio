@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { connectDatabase } from "@/server/db";
 import { StudioConvertyConnection } from "@/server/models";
 import { syncOrder } from "@/server/converty-sync";
+import { sha256 } from "@/server/security";
 
 export async function POST(
   req: NextRequest,
@@ -9,7 +10,9 @@ export async function POST(
 ) {
   await connectDatabase();
   const { storeId } = await params;
-  const connection = await StudioConvertyConnection.findOne({ convertyStoreId: storeId }).lean();
+  const connection = await StudioConvertyConnection.findOne({
+    webhookSecretHash: sha256(storeId),
+  }).lean();
   if (!connection) {
     return NextResponse.json({ success: false, message: "Store not connected" }, { status: 404 });
   }

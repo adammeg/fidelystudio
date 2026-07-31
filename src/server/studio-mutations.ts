@@ -8,7 +8,12 @@ import {
   StudioInfluencer,
   StudioSession,
 } from "./models";
-import { setupWebhooksForUser, syncOrdersForUser } from "./converty-sync";
+import {
+  setupWebhooksForUser,
+  syncOrdersForUser,
+  teardownWebhooksForUser,
+} from "./converty-sync";
+import { isUnsupportedStudioApi } from "@/lib/features";
 
 export async function studioMutate(
   userId: string,
@@ -18,6 +23,9 @@ export async function studioMutate(
 ) {
   await connectDatabase();
   const clean = path.replace(/^\/+|\/+$/g, "");
+  if (isUnsupportedStudioApi(clean)) {
+    throw Object.assign(new Error("This feature is not available yet"), { status: 404 });
+  }
 
   if (clean === "campaigns" && method === "POST") {
     const name = String(body.name || "").trim();
@@ -100,6 +108,7 @@ export async function studioMutate(
   if (clean === "converty/sync" && method === "POST") return syncOrdersForUser(userId);
   if (clean === "converty/webhooks/setup" && method === "POST") return setupWebhooksForUser(userId);
   if (clean === "converty/disconnect" && method === "POST") {
+    await teardownWebhooksForUser(userId);
     await Promise.all([
       StudioConvertyConnection.deleteOne({ user: userId }),
       StudioSession.deleteMany({ user: userId }),

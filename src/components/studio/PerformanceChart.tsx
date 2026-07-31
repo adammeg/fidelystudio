@@ -27,6 +27,8 @@ interface Pt {
 }
 
 function smooth(pts: Pt[]): string {
+  if (!pts.length) return "";
+  if (pts.length === 1) return `M${pts[0].x},${pts[0].y}`;
   let d = "M" + pts[0].x + "," + pts[0].y;
   for (let i = 0; i < pts.length - 1; i++) {
     const p0 = pts[i - 1] || pts[i];
@@ -69,9 +71,13 @@ export default function PerformanceChart({ series, xLabels }: Props) {
   const d = series[active];
 
   const { line, area, grid, last } = useMemo(() => {
-    const v = d.v;
+    const source = d.v.length ? d.v : [0, 0];
+    const v = source.map((value) => {
+      const numeric = Number(value);
+      return Number.isFinite(numeric) ? numeric : 0;
+    });
     const n = v.length;
-    const max = Math.max(...v) * 1.12;
+    const max = Math.max(1, ...v) * 1.12;
     const min = 0;
     const plotW = W - PADL - PADR;
     const plotH = H - PADT - PADB;
@@ -177,8 +183,8 @@ export default function PerformanceChart({ series, xLabels }: Props) {
         </svg>
       </div>
       <div className="axis-x">
-        {xLabels.map((l) => (
-          <span key={l}>{l}</span>
+        {xLabels.map((l, index) => (
+          <span key={`${l}-${index}`}>{l}</span>
         ))}
       </div>
     </div>

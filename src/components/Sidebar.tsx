@@ -24,25 +24,11 @@ interface NavEntry {
 const mainNav: NavEntry[] = [
   {
     label: "Studio",
-    href: "/",
+    href: "/studio",
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
         <path d="M3 12l9-8 9 8" />
         <path d="M5 10v9h14v-9" />
-      </svg>
-    ),
-  },
-  {
-    label: "Influence & Referral",
-    href: "/influence",
-    subs: [
-      { label: "Influencer campaigns", href: "/influence" },
-      { label: "Customer referral", href: "/influence/referral" },
-    ],
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-        <path d="M3 11l16-7-3 16-5-5-5 2z" />
-        <path d="M11 15l5-9" />
       </svg>
     ),
   },
@@ -63,36 +49,6 @@ const mainNav: NavEntry[] = [
       </svg>
     ),
   },
-  {
-    label: "Campaigns",
-    href: "/campaigns",
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-        <path d="M4 13l13-9-3 17-4-5-6-3z" />
-      </svg>
-    ),
-  },
-  {
-    label: "Loyalty",
-    href: "/loyalty",
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-        <path d="M12 3l2.5 5.2 5.5.8-4 3.9 1 5.6L12 16l-5 2.5 1-5.6-4-3.9 5.5-.8z" />
-      </svg>
-    ),
-  },
-  {
-    label: "Widgets",
-    href: "/widgets",
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-        <rect x="3.5" y="3.5" width="7" height="7" rx="1.5" />
-        <rect x="13.5" y="3.5" width="7" height="7" rx="1.5" />
-        <rect x="3.5" y="13.5" width="7" height="7" rx="1.5" />
-        <rect x="13.5" y="13.5" width="7" height="7" rx="1.5" />
-      </svg>
-    ),
-  },
 ];
 
 const settingsNav: NavEntry = {
@@ -107,7 +63,6 @@ const settingsNav: NavEntry = {
 };
 
 function sectionActive(pathname: string, href: string) {
-  if (href === "/") return pathname === "/";
   return pathname === href || pathname.startsWith(href + "/");
 }
 
