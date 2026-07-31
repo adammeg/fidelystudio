@@ -1,6 +1,7 @@
 import { decryptSecret, encryptSecret } from "./security";
 
-const BASE_URL = "https://partner.converty.shop";
+const AUTH_BASE_URL = "https://partner.converty.shop";
+const API_BASE_URL = "https://api.converty.shop";
 const TOKEN_BUFFER_MS = 5 * 60 * 1000;
 const MAX_RETRIES = 3;
 
@@ -82,7 +83,7 @@ async function tokenRequest(params: Record<string, string>) {
     client_secret: env("CONVERTY_CLIENT_SECRET"),
   });
   const res = await withBackoff(() =>
-    fetch(`${BASE_URL}/oauth2/token`, {
+    fetch(`${AUTH_BASE_URL}/oauth2/token`, {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body,
@@ -105,7 +106,7 @@ export function authorizationUrl(state: string) {
     scope: convertyScopes().join(" "),
     state,
   });
-  return `${BASE_URL}/oauth2/authorize?${params}`;
+  return `${AUTH_BASE_URL}/oauth2/authorize?${params}`;
 }
 
 export function exchangeAuthorizationCode(code: string) {
@@ -156,7 +157,7 @@ export async function convertyApi<T>(
 
   for (;;) {
     const res = await withBackoff(() =>
-      fetch(`${BASE_URL}/api/v1${path}`, {
+      fetch(`${API_BASE_URL}/api/v1${path}`, {
         method: init.method || "GET",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -178,7 +179,7 @@ export async function convertyApi<T>(
 }
 
 export async function storeInfoWithToken(accessToken: string) {
-  const res = await fetch(`${BASE_URL}/api/v1/stores/me`, {
+  const res = await fetch(`${API_BASE_URL}/api/v1/stores/me`, {
     headers: { Authorization: `Bearer ${accessToken}` },
     cache: "no-store",
   });

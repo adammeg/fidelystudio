@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   authorizationUrl,
   exchangeAuthorizationCode,
+  storeInfoWithToken,
 } from "../src/server/converty";
 
 describe("Converty OAuth contract", () => {
@@ -72,5 +73,18 @@ describe("Converty OAuth contract", () => {
       "read-stores read-orders read-hooks create-hooks delete-hooks";
     const url = new URL(authorizationUrl("csrf-state"));
     expect(url.searchParams.get("scope")?.split(" ")).toContain("create-hooks");
+  });
+
+  it("uses the separate protected API origin for store data", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify({ data: { _id: "store-1", name: "Store" } }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      })
+    );
+    await storeInfoWithToken("access-token");
+    expect(fetchMock.mock.calls[0][0]).toBe(
+      "https://api.converty.shop/api/v1/stores/me"
+    );
   });
 });
