@@ -180,45 +180,6 @@ export async function setupWebhooksForUser(userId: string) {
   return { webhooksActive: connection.webhookIds.length === 2 };
 }
 
-export async function syncAllConnectedStores(maxPages = 2) {
-  const connections = await StudioConvertyConnection.find({}).select("user webhookIds").lean();
-  const results: {
-    userId: string;
-    synced: number;
-    webhooksActive: boolean;
-    error?: string;
-    webhookError?: string;
-  }[] = [];
-  for (const connection of connections) {
-    const userId = String(connection.user);
-    let synced = 0;
-    let error: string | undefined;
-    let webhookError: string | undefined;
-    try {
-      const result = await syncOrdersForUser(userId, maxPages);
-      synced = result.synced;
-    } catch (syncError) {
-      error = syncError instanceof Error ? syncError.message : "Automatic sync failed";
-    }
-    let webhooksActive = connection.webhookIds?.length === 2;
-    if (!webhooksActive) {
-      try {
-        const setup = await setupWebhooksForUser(userId);
-        webhooksActive = setup.webhooksActive;
-      } catch (setupError) {
-        webhookError = setupError instanceof Error ? setupError.message : "Webhook setup failed";
-      }
-    }
-    results.push({ userId, synced, webhooksActive, ...(error ? { error } : {}), ...(webhookError ? { webhookError } : {}) });
-  }
-  return {
-    stores: results.length,
-    succeeded: results.filter((result) => !result.error).length,
-    failed: results.filter((result) => result.error).length,
-    results,
-  };
-}
-
 export async function teardownWebhooksForUser(userId: string) {
   const connection = await StudioConvertyConnection.findOne({ user: userId });
   if (!connection) return;

@@ -35,7 +35,7 @@ export default async function ConvertySyncCrumb({
   }
 
   const storeLabel = status.store?.name || "Converty store";
-  const syncLabel = status.lastSyncAt ? `Last sync ${syncAgo(status.lastSyncAt)}` : "Awaiting first sync";
+  const syncLabel = status.lastDataAt ? `Last update ${syncAgo(status.lastDataAt)}` : "Awaiting first import";
 
   return (
     <div className={className}>

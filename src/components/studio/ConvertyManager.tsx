@@ -298,11 +298,11 @@ export default function ConvertyManager({ initial, callbackStatus, callbackMessa
             </b>
           </div>
           <div className="stat-row">
-            <span>Last sync</span>
-            <b>{status.lastSyncAt ? syncAgo(status.lastSyncAt) : "Never"}</b>
+            <span>Latest data update</span>
+            <b>{status.lastDataAt ? syncAgo(status.lastDataAt) : "Never"}</b>
           </div>
           <div className="stat-row">
-            <span>Last reconciliation</span>
+            <span>Last full import</span>
             <b>{status.lastSyncAt ? `${status.lastSyncOrderCount} orders processed` : "Not run"}</b>
           </div>
           <div className="stat-row">
@@ -350,7 +350,7 @@ export default function ConvertyManager({ initial, callbackStatus, callbackMessa
 
             <button className="btn btn-secondary" onClick={sync} disabled={busy !== null}>
 
-              {busy === "sync" ? "Syncing…" : "Run backup sync"}
+              {busy === "sync" ? "Importing…" : "Refresh all orders"}
 
             </button>
 

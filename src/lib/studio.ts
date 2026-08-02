@@ -94,6 +94,7 @@ export interface ConvertyStatus {
   lastSyncError: string | null;
   lastSyncOrderCount: number;
   lastWebhookAt: string | null;
+  lastDataAt: string | null;
   lastWebhookError: string | null;
   connectedAt: string | null;
   webhooksActive?: boolean;

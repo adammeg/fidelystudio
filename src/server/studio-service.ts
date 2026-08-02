@@ -185,6 +185,9 @@ export async function studioGet(userId: string, path: string, search = new URLSe
 
   if (clean === "converty/status") {
     const connection = await StudioConvertyConnection.findOne({ user: userId }).lean();
+    const activityTimes = [connection?.lastSyncAt, connection?.lastWebhookAt]
+      .filter(Boolean).map((value) => new Date(value!).getTime());
+    const lastDataAt = activityTimes.length ? new Date(Math.max(...activityTimes)) : null;
     return {
       connected: Boolean(connection),
       configured: Boolean(
@@ -209,6 +212,7 @@ export async function studioGet(userId: string, path: string, search = new URLSe
       lastSyncError: connection?.lastSyncError || null,
       lastSyncOrderCount: connection?.lastSyncOrderCount || 0,
       lastWebhookAt: connection?.lastWebhookAt || null,
+      lastDataAt,
       lastWebhookError: connection?.lastWebhookError || null,
       connectedAt: connection?.connectedAt || null,
       webhooksActive: connection?.webhookIds?.length === 2,
@@ -216,7 +220,7 @@ export async function studioGet(userId: string, path: string, search = new URLSe
         ? "disconnected"
         : connection.lastSyncError || connection.lastWebhookError || connection.webhookIds?.length !== 2
           ? "attention"
-          : connection.lastSyncAt && Date.now() - new Date(connection.lastSyncAt).getTime() <= 86_400_000
+          : lastDataAt && Date.now() - lastDataAt.getTime() <= 86_400_000
             ? "healthy" : "stale",
     };
   }
