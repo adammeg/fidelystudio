@@ -60,6 +60,22 @@ const ConvertyConnectionSchema = new Schema(
   { timestamps: true }
 );
 
+const WhatsAppConnectionSchema = new Schema(
+  {
+    user: { type: Schema.Types.ObjectId, ref: "StudioUser", required: true, unique: true, index: true },
+    instanceName: { type: String, required: true, unique: true, index: true },
+    instanceId: { type: String, default: null },
+    status: { type: String, enum: ["disconnected", "connecting", "connected"], default: "disconnected" },
+    phone: { type: String, default: null },
+    webhookSecretHash: { type: String, required: true, unique: true, index: true },
+    lastStatusAt: { type: Date, default: null },
+    lastWebhookAt: { type: Date, default: null },
+    lastError: { type: String, default: null },
+    connectedAt: { type: Date, default: null },
+  },
+  { timestamps: true }
+);
+
 const CustomerSchema = new Schema(
   {
     user: { type: Schema.Types.ObjectId, ref: "StudioUser", required: true, index: true },
@@ -133,7 +149,7 @@ const CampaignRecipientSchema = new Schema(
     user: { type: Schema.Types.ObjectId, ref: "StudioUser", required: true, index: true },
     campaign: { type: Schema.Types.ObjectId, ref: "StudioCampaign", required: true, index: true },
     customer: { type: Schema.Types.ObjectId, ref: "StudioCustomer", required: true, index: true },
-    channel: { type: String, enum: ["whatsapp", "sms", "email"], required: true },
+    channel: { type: String, enum: ["whatsapp"], required: true },
     destination: { type: String, required: true },
     status: { type: String, enum: ["queued", "excluded_consent", "excluded_frequency", "sent", "delivered", "failed"], required: true },
     providerMessageId: { type: String, default: null },
@@ -201,6 +217,9 @@ export const StudioOAuthState =
 export const StudioConvertyConnection =
   mongoose.models.StudioConvertyConnection ||
   mongoose.model("StudioConvertyConnection", ConvertyConnectionSchema);
+export const StudioWhatsAppConnection =
+  mongoose.models.StudioWhatsAppConnection ||
+  mongoose.model("StudioWhatsAppConnection", WhatsAppConnectionSchema);
 export const StudioCustomer =
   mongoose.models.StudioCustomer || mongoose.model("StudioCustomer", CustomerSchema);
 export const StudioOrder =

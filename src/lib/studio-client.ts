@@ -33,6 +33,10 @@ export function saveCustomerNote(customerId: string, note: string) {
   return mutate(`customers/${customerId}`, "PUT", { note: note || null });
 }
 
+export function saveCustomerConsent(customerId: string, marketingConsent: { whatsapp: boolean; sms: boolean; email: boolean }) {
+  return mutate(`customers/${customerId}`, "PUT", { marketingConsent });
+}
+
 export function setupConvertyWebhooks() {
   return mutate("converty/webhooks/setup", "POST", {});
 }

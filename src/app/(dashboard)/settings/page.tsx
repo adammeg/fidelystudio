@@ -2,13 +2,15 @@ import ConvertyManager from "@/components/studio/ConvertyManager";
 import ConvertySyncCrumb from "@/components/studio/ConvertySyncCrumb";
 import AccountManager from "@/components/studio/AccountManager";
 import { getAccount, getConvertyStatus } from "@/lib/studio";
+import WhatsAppManager from "@/components/studio/WhatsAppManager";
+import { getWhatsAppStatus } from "@/lib/studio";
 
 export default async function SettingsPage({
   searchParams,
 }: {
   searchParams: Promise<{ converty?: string; message?: string }>;
 }) {
-  const [status, account, params] = await Promise.all([getConvertyStatus(), getAccount(), searchParams]);
+  const [status, account, whatsapp, params] = await Promise.all([getConvertyStatus(), getAccount(), getWhatsAppStatus(), searchParams]);
 
   return (
     <>
@@ -26,6 +28,7 @@ export default async function SettingsPage({
           callbackStatus={params.converty}
           callbackMessage={params.message}
         />
+        <WhatsAppManager initial={whatsapp} />
 
         <AccountManager account={account} />
 

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getCustomer } from "@/lib/studio";
 import CustomerNotesForm from "@/components/studio/CustomerNotesForm";
+import CustomerConsentForm from "@/components/studio/CustomerConsentForm";
 import { fmt, initials, timeAgo } from "@/lib/format";
 
 function date(value: string | null) {
@@ -56,9 +57,13 @@ export default async function CustomerPage({ params }: { params: Promise<{ id: s
             </tr>)}</tbody>
           </table></div> : <div className="empty-state"><h3>No orders found</h3><p>This customer has no synced orders.</p></div>}
         </section>
-        <aside className="panel span4">
-          <div className="p-head"><div><h3>Private note</h3><div className="sub">Visible only inside Fidely Studio</div></div></div>
-          <CustomerNotesForm customerId={customer.id} initialNote={customer.note || ""} />
+        <aside className="span4" style={{ display: "grid", gap: 16, alignContent: "start" }}>
+          <section className="panel"><div className="p-head"><div><h3>Marketing consent</h3><div className="sub">Controls campaign eligibility</div></div></div>
+            <CustomerConsentForm customerId={customer.id} initial={customer.marketingConsent} />
+          </section>
+          <section className="panel"><div className="p-head"><div><h3>Private note</h3><div className="sub">Visible only inside Fidely Studio</div></div></div>
+            <CustomerNotesForm customerId={customer.id} initialNote={customer.note || ""} />
+          </section>
         </aside>
       </div>
     </div>

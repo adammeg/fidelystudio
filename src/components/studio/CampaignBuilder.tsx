@@ -67,7 +67,6 @@ export default function CampaignBuilder({
   const [message, setMessage] = useState(
     `Salem, you're close to your next reward. This weekend, every delivered order earns double points.`
   );
-  const [channels, setChannels] = useState({ whatsapp: true, sms: false, email: false });
   const [goal, setGoal] = useState<Goal>(parseGoal(initial?.goal));
   const hours = 48;
   const [launching, setLaunching] = useState(false);
@@ -77,51 +76,45 @@ export default function CampaignBuilder({
 
   const est = useMemo(() => {
     const audience = segment?.count || 0;
-    const channelCount = Object.values(channels).filter(Boolean).length || 1;
-    const messageCost = Math.round(audience * 0.15 * channelCount);
+    const messageCost = 0;
     const rewardsAtStake = Math.round(audience * REWARD_PER[incentive] * 0.6);
     const max = messageCost + rewardsAtStake;
     const risk = max < 1000 ? { label: "Low", dot: "#3E8E5A", cls: "c-pr" } : max < 3000 ? { label: "Medium", dot: "#C98A2B", cls: "c-wc" } : { label: "High", dot: "#C25B4E", cls: "c-pay" };
     return { audience, messageCost, rewardsAtStake, max, risk };
-  }, [segment, channels, incentive]);
+  }, [segment, incentive]);
 
-  const activeChannels = (Object.keys(channels) as (keyof typeof channels)[]).filter((c) => channels[c]);
+  const activeChannels = ["whatsapp"] as const;
   const incentiveLabel = INCENTIVES.find((i) => i.key === incentive)?.label || "";
 
   async function launch() {
     setLaunching(true);
     setError(null);
     try {
-      const type =
-        initial?.type === "influencer" ? "influencer" : goal === "Referral" ? "referral" : "loyalty";
+      const type = goal === "Referral" ? "referral" : "loyalty";
       const res = await fetch("/api/studio/campaigns", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name,
           type,
-          state: "active",
           goal,
           channels: activeChannels,
           durationLabel: `${hours} hours`,
           customerDiscountPct: incentive === "discount" ? 10 : 0,
-          commissionPct: type === "influencer" ? 8 : 0,
+          commissionPct: 0,
           segmentKey: segKey || undefined,
           incentiveType: incentive,
           message,
         }),
       });
       if (!res.ok) throw new Error((await res.json().catch(() => ({}))).message || "Launch failed");
-      router.push("/studio");
+      const data = await res.json();
+      router.push(`/campaigns/${data.campaign.slug}`);
       router.refresh();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Launch failed");
       setLaunching(false);
     }
-  }
-
-  function toggleChannel(c: keyof typeof channels) {
-    setChannels((s) => ({ ...s, [c]: !s[c] }));
   }
 
   const preview = message.replace("{store}", storeName);
@@ -215,9 +208,9 @@ export default function CampaignBuilder({
               <div className="bsec-title">Channels</div>
             </div>
           </div>
-          <div className="opt-row" style={{ gridTemplateColumns: "repeat(3,1fr)" }}>
-            {(["whatsapp", "sms", "email"] as const).map((c) => (
-              <div key={c} className={`opt${channels[c] ? " on" : ""}`} onClick={() => toggleChannel(c)} style={{ cursor: "pointer" }}>
+          <div className="opt-row" style={{ gridTemplateColumns: "1fr" }}>
+            {(["whatsapp"] as const).map((c) => (
+              <div key={c} className="opt on">
                 <span className="oic">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
                     <rect x="3" y="5" width="18" height="14" rx="3" />
@@ -225,7 +218,7 @@ export default function CampaignBuilder({
                   </svg>
                 </span>
                 <span className="otx" style={{ textTransform: "capitalize" }}>{c}</span>
-                {channels[c] && (
+                {(
                   <span className="ock">
                     <Check />
                   </span>
@@ -298,7 +291,7 @@ export default function CampaignBuilder({
             <div className="est-break">
               <div className="est-rowi">
                 <span>Message cost</span>
-                <span className="rv">{est.messageCost.toLocaleString("en-US")} TND</span>
+                <span className="rv">Included in your Fidely plan</span>
               </div>
               <div className="est-rowi">
                 <span>Rewards at stake</span>

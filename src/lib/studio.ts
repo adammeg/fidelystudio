@@ -131,6 +131,7 @@ export interface ApiCustomer {
   phone: string;
   email: string | null;
   source: ApiSource;
+  marketingConsent: { whatsapp: boolean; sms: boolean; email: boolean };
   points: number;
   tier: string;
   placed: number;
@@ -203,6 +204,7 @@ export interface CohortsData {
   bySource: { source: string; customers: number; secondDelivered: number; repeatPct: number; revenue: number }[];
   byMonth: { month: string; monthKey: string; newCustomers: number; second: number; third: number; repeatPct: number; sales: number }[];
 }
+export interface WhatsAppStatus { configured: boolean; connected: boolean; status: "disconnected" | "connecting" | "connected"; phone: string | null; lastError: string | null; connectedAt?: string | null; lastWebhookAt?: string | null }
 
 export interface AccountData {
   profile: { email: string; shopName: string; ownerName: string; currency: string };
@@ -224,6 +226,7 @@ export interface AccountData {
 
 export const getOverview = (days = 30) => get<Overview>(`/studio/overview?days=${days}`);
 export const getConvertyStatus = () => get<ConvertyStatus>("/studio/converty/status");
+export const getWhatsAppStatus = () => get<WhatsAppStatus>("/studio/whatsapp/status");
 export const getAccount = () => get<AccountData>("/studio/account");
 export const getInfluencers = () => get<{ influencers: ApiInfluencer[] }>("/studio/influencers");
 export const getCampaigns = () => get<{ campaigns: ApiCampaign[] }>("/studio/campaigns");

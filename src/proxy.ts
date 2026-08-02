@@ -45,6 +45,6 @@ export function proxy(req: NextRequest) {
 export const config = {
   // Run on everything except Next internals, the auth API, and static assets.
   matcher: [
-    "/((?!api/auth/converty|api/auth/default|api/converty/webhooks|api/logout|_next/static|_next/image|favicon.ico|sw.js).*)",
+    "/((?!api/auth/converty|api/auth/default|api/converty/webhooks|api/evolution/webhooks|api/logout|_next/static|_next/image|favicon.ico|sw.js).*)",
   ],
 };

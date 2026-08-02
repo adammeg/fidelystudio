@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { z } from "zod";
 import { connectDatabase } from "./db";
 import {
   StudioCampaign,
@@ -22,6 +23,35 @@ import { effectiveSubscription } from "@/lib/plans";
 import { ensureSubscription } from "./subscriptions";
 import { classifyCustomers, type SegmentKey } from "@/lib/customer-segments";
 import { customerRows } from "./studio-service";
+import { snapshotAudience } from "@/lib/campaign-audience";
+import { connectWhatsApp, sendCampaignBatch } from "./evolution";
+
+const campaignCreateSchema = z.object({
+  name: z.string().trim().min(2).max(100),
+  type: z.enum(["loyalty", "referral"]).default("loyalty"),
+  goal: z.enum(["Repeat purchase", "Reactivation", "Referral", "New customers", "Revenue"]),
+  channels: z.tuple([z.literal("whatsapp")]),
+  durationLabel: z.string().max(50).optional(),
+  customerDiscountPct: z.number().min(0).max(100).default(0),
+  commissionPct: z.number().min(0).max(100).default(0),
+  segmentKey: z.enum(["vip", "atRisk", "dormant", "highBasket", "closeReward", "influencerAcquired"]),
+  incentiveType: z.enum(["points", "free_delivery", "discount", "gift"]),
+  message: z.string().trim().min(10).max(1000),
+  scheduledAt: z.string().datetime().optional(),
+}).strict();
+
+const campaignUpdateSchema = z.object({
+  name: z.string().trim().min(2).max(100).optional(),
+  message: z.string().trim().min(10).max(1000).optional(),
+  scheduledAt: z.string().datetime().nullable().optional(),
+  state: z.enum(["draft", "cancelled"]).optional(),
+}).strict();
+
+const customerUpdateSchema = z.object({
+  note: z.string().max(2000).nullable().optional(),
+  tags: z.array(z.string().trim().min(1).max(40)).max(20).optional(),
+  marketingConsent: z.object({ whatsapp: z.boolean(), sms: z.boolean(), email: z.boolean() }).strict().optional(),
+}).strict();
 
 export async function studioMutate(
   userId: string,
@@ -43,61 +73,62 @@ export async function studioMutate(
   }
 
   if (clean === "campaigns" && method === "POST") {
-    const name = String(body.name || "").trim();
-    if (name.length < 2) throw Object.assign(new Error("Campaign name is required"), { status: 400 });
+    const parsed = campaignCreateSchema.safeParse(body);
+    if (!parsed.success) throw Object.assign(new Error(parsed.error.issues[0]?.message || "Invalid campaign"), { status: 400 });
+    const input = parsed.data;
+    const name = input.name;
     const baseSlug = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "campaign";
     const slug = `${baseSlug}-${Date.now().toString(36)}`;
-    const segmentKey = String(body.segmentKey || "") as SegmentKey;
-    const channels = Array.isArray(body.channels) ? body.channels.filter((channel): channel is "whatsapp" | "sms" | "email" => ["whatsapp", "sms", "email"].includes(String(channel))) : [];
-    const message = String(body.message || "").trim();
-    if (!channels.length) throw Object.assign(new Error("Select at least one channel"), { status: 400 });
-    if (message.length < 10 || message.length > 1000) throw Object.assign(new Error("Message must be between 10 and 1,000 characters"), { status: 400 });
+    const segmentKey = input.segmentKey as SegmentKey;
+    const channels = input.channels;
+    const message = input.message;
     const rows = await customerRows(userId);
     const classification = classifyCustomers(rows);
-    if (!(segmentKey in classification.members)) throw Object.assign(new Error("Select a valid customer segment"), { status: 400 });
     const audience = classification.members[segmentKey];
-    const frequencyCutoff = new Date(Date.now() - 7 * 86_400_000);
+    const snapshot = snapshotAudience(audience, channels);
     const campaign = await StudioCampaign.create({
       user: userId,
       name,
       slug,
-      type: body.type,
+      type: input.type,
       state: "draft",
-      goal: body.goal,
-      budget: body.budget,
-      customerDiscountPct: body.customerDiscountPct,
-      commissionPct: body.commissionPct,
-      durationLabel: body.durationLabel,
+      goal: input.goal,
+      customerDiscountPct: input.customerDiscountPct,
+      commissionPct: input.commissionPct,
+      durationLabel: input.durationLabel,
       channels,
       segmentKey,
-      incentiveType: body.incentiveType,
+      incentiveType: input.incentiveType,
       message,
-      scheduledAt: body.scheduledAt ? new Date(String(body.scheduledAt)) : new Date(),
+      scheduledAt: input.scheduledAt ? new Date(input.scheduledAt) : null,
       attributionDays: 14,
       audienceCount: audience.length,
     });
-    const recipients = audience.flatMap((customer) => channels.map((channel) => {
-      const consent = Boolean(customer.marketingConsent?.[channel]);
-      const frequencyBlocked = customer.lastMessagedAt && new Date(customer.lastMessagedAt) > frequencyCutoff;
-      const destination = channel === "email" ? customer.email : customer.phone;
-      return {
-        user: userId, campaign: campaign._id, customer: customer.id, channel,
-        destination: destination || "unavailable",
-        status: !consent || !destination ? "excluded_consent" : frequencyBlocked ? "excluded_frequency" : "queued",
-      };
+    const recipients = snapshot.recipients.map((recipient) => ({
+      user: userId, campaign: campaign._id, customer: recipient.customerId,
+      channel: recipient.channel, destination: recipient.destination, status: recipient.status,
     }));
     if (recipients.length) await StudioCampaignRecipient.insertMany(recipients);
-    const eligibleCount = recipients.filter((recipient) => recipient.status === "queued").length;
+    const eligibleCount = snapshot.eligibleCustomerCount;
     campaign.eligibleCount = eligibleCount;
     if (!eligibleCount) campaign.state = "draft";
     await campaign.save();
-    return { campaign, audienceCount: audience.length, eligibleCount, excludedCount: recipients.length - eligibleCount };
+    return { campaign, audienceCount: audience.length, eligibleCount, queuedMessageCount: snapshot.queuedMessageCount, excludedConsentCount: snapshot.excludedConsentCount, excludedFrequencyCount: snapshot.excludedFrequencyCount };
   }
 
+  if (clean.match(/^campaigns\/[^/]+\/send$/) && method === "POST") {
+    return sendCampaignBatch(userId, clean.split("/")[1], Number(body.limit) || 20);
+  }
+
+  if (clean === "whatsapp/connect" && method === "POST") return connectWhatsApp(userId);
+
   if (clean.startsWith("campaigns/") && method === "PATCH") {
+    const parsed = campaignUpdateSchema.safeParse(body);
+    if (!parsed.success) throw Object.assign(new Error(parsed.error.issues[0]?.message || "Invalid campaign update"), { status: 400 });
+    const update = { ...parsed.data, ...(parsed.data.scheduledAt !== undefined ? { scheduledAt: parsed.data.scheduledAt ? new Date(parsed.data.scheduledAt) : null } : {}) };
     const campaign = await StudioCampaign.findOneAndUpdate(
       { user: userId, slug: clean.slice("campaigns/".length) },
-      { $set: body },
+      { $set: update },
       { new: true }
     );
     if (!campaign) throw Object.assign(new Error("Campaign not found"), { status: 404 });
@@ -132,13 +163,16 @@ export async function studioMutate(
 
   if (clean.startsWith("customers/") && method === "PUT") {
     const customerId = clean.slice("customers/".length);
+    if (!mongoose.isValidObjectId(customerId)) throw Object.assign(new Error("Invalid customer"), { status: 400 });
+    const parsed = customerUpdateSchema.safeParse(body);
+    if (!parsed.success) throw Object.assign(new Error(parsed.error.issues[0]?.message || "Invalid customer update"), { status: 400 });
     const customer = await StudioCustomer.findOneAndUpdate(
       { _id: customerId, user: userId },
-      { $set: { ...(body.note !== undefined ? { note: body.note } : {}), ...(body.tags ? { tags: body.tags } : {}) } },
+      { $set: parsed.data },
       { new: true }
     );
     if (!customer) throw Object.assign(new Error("Customer not found"), { status: 404 });
-    return { customer: { id: String(customer._id), note: customer.note, tags: customer.tags } };
+    return { customer: { id: String(customer._id), note: customer.note, tags: customer.tags, marketingConsent: customer.marketingConsent } };
   }
 
   if (["referral", "loyalty", "widgets"].includes(clean) && method === "PUT") {

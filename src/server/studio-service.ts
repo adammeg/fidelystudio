@@ -15,6 +15,7 @@ import { isUnsupportedStudioApi } from "@/lib/features";
 import { classifyCustomers, isInSegment, type SegmentKey } from "@/lib/customer-segments";
 import { effectiveSubscription, FIDELY_ENTITLEMENTS, FIDELY_MONTHLY_PRICE } from "@/lib/plans";
 import { ensureSubscription } from "./subscriptions";
+import { whatsappStatus } from "./evolution";
 
 const referralDefaults = {
   enabled: true,
@@ -226,6 +227,8 @@ export async function studioGet(userId: string, path: string, search = new URLSe
     };
   }
 
+  if (clean === "whatsapp/status") return whatsappStatus(userId);
+
   if (clean === "account") {
     const [user, connection, customerCount] = await Promise.all([
       StudioUser.findById(userId).lean(),
@@ -329,8 +332,12 @@ export async function studioGet(userId: string, path: string, search = new URLSe
   if (clean.startsWith("campaigns/")) {
     const campaign = await StudioCampaign.findOne({ user: userId, slug: clean.slice(10) }).lean();
     if (!campaign) throw Object.assign(new Error("Campaign not found"), { status: 404 });
+    const recipientCounts = await StudioCampaignRecipient.aggregate([
+      { $match: { campaign: campaign._id } }, { $group: { _id: "$status", count: { $sum: 1 } } },
+    ]);
     return {
       campaign: campaignJson(campaign),
+      recipients: Object.fromEntries(recipientCounts.map((row) => [row._id, row.count])),
       totals: { placed: 0, delivered: 0, deliveredPct: 0, earned: 0, spent: 0 },
       influencers: [],
     };
