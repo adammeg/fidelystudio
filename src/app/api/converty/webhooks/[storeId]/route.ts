@@ -22,6 +22,13 @@ export async function POST(
     return NextResponse.json({ success: false, message: "Unsupported event" }, { status: 400 });
   }
   const order = body?.data?.order || body?.order || body?.data || body;
-  const synced = await syncOrder(String(connection.user), order);
-  return NextResponse.json({ success: true, synced });
+  try {
+    const synced = await syncOrder(String(connection.user), order);
+    await StudioConvertyConnection.updateOne({ _id: connection._id }, { $set: { lastWebhookAt: new Date(), lastWebhookError: null } });
+    return NextResponse.json({ success: true, synced });
+  } catch (error) {
+    const message = error instanceof Error ? error.message.slice(0, 500) : "Webhook processing failed";
+    await StudioConvertyConnection.updateOne({ _id: connection._id }, { $set: { lastWebhookError: message } });
+    return NextResponse.json({ success: false, message: "Webhook processing failed" }, { status: 500 });
+  }
 }

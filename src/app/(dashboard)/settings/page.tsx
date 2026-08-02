@@ -1,13 +1,14 @@
 import ConvertyManager from "@/components/studio/ConvertyManager";
 import ConvertySyncCrumb from "@/components/studio/ConvertySyncCrumb";
-import { getConvertyStatus } from "@/lib/studio";
+import AccountManager from "@/components/studio/AccountManager";
+import { getAccount, getConvertyStatus } from "@/lib/studio";
 
 export default async function SettingsPage({
   searchParams,
 }: {
   searchParams: Promise<{ converty?: string; message?: string }>;
 }) {
-  const [status, params] = await Promise.all([getConvertyStatus(), searchParams]);
+  const [status, account, params] = await Promise.all([getConvertyStatus(), getAccount(), searchParams]);
 
   return (
     <>
@@ -25,6 +26,8 @@ export default async function SettingsPage({
           callbackStatus={params.converty}
           callbackMessage={params.message}
         />
+
+        <AccountManager account={account} />
 
         <div className="panel" style={{ marginTop: 16 }} data-screen-label="Account">
           <div className="p-head">

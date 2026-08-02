@@ -1,16 +1,16 @@
 import Sidebar from "@/components/Sidebar";
 import { getConvertyStatus } from "@/lib/studio";
 import { getSessionUser } from "@/lib/session";
+import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 
 export default async function DashboardLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
-  const [user, converty] = await Promise.all([
-    getSessionUser(),
-    getConvertyStatus().catch(() => null),
-  ]);
+  const user = await getSessionUser();
+  if (user.role === "admin") redirect("/admin");
+  const converty = await getConvertyStatus().catch(() => null);
   const name = user.shopName || user.email || "Fidely store";
   const platform =
     converty?.connected && converty.store?.name

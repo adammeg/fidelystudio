@@ -2,14 +2,19 @@ import mongoose from "mongoose";
 import { connectDatabase } from "./db";
 import {
   StudioCampaign,
+  StudioCampaignRecipient,
   StudioConfig,
   StudioConvertyConnection,
   StudioCustomer,
   StudioInfluencer,
   StudioOrder,
+  StudioSubscription,
   StudioUser,
 } from "./models";
 import { isUnsupportedStudioApi } from "@/lib/features";
+import { classifyCustomers, isInSegment, type SegmentKey } from "@/lib/customer-segments";
+import { effectiveSubscription, FIDELY_ENTITLEMENTS, FIDELY_MONTHLY_PRICE } from "@/lib/plans";
+import { ensureSubscription } from "./subscriptions";
 
 const referralDefaults = {
   enabled: true,
@@ -90,7 +95,7 @@ async function config(userId: string, key: string, defaults: object) {
   return record!.data;
 }
 
-async function customerRows(userId: string) {
+export async function customerRows(userId: string) {
   const [customers, orders] = await Promise.all([
     StudioCustomer.find({ user: userId }).sort({ updatedAt: -1 }).lean(),
     StudioOrder.find({ user: userId }).lean(),
@@ -101,19 +106,30 @@ async function customerRows(userId: string) {
     const refused = related.filter((order) =>
       ["refused", "returned", "cancelled", "rejected"].includes(order.status)
     );
+    const latestDeliveredAt = delivered.reduce<Date | null>((latest, order) => {
+      const value = order.deliveredAt ? new Date(order.deliveredAt) : null;
+      return value && (!latest || value > latest) ? value : latest;
+    }, null);
+    const firstDeliveredAt = delivered.reduce<Date | null>((first, order) => {
+      const value = order.deliveredAt ? new Date(order.deliveredAt) : null;
+      return value && (!first || value < first) ? value : first;
+    }, null);
     return {
       id: id(customer._id),
       name: customer.name,
       phone: customer.phone,
       email: customer.email || null,
       source: customer.source || { type: "direct" },
+      marketingConsent: customer.marketingConsent || { whatsapp: false, sms: false, email: false },
+      lastMessagedAt: customer.lastMessagedAt || null,
       points: customer.points || 0,
       tier: customer.tier || "Member",
       placed: related.length,
       delivered: delivered.length,
       refused: refused.length,
       spent: Math.round(delivered.reduce((sum, order) => sum + (order.amount || 0), 0)),
-      lastDeliveredAt: customer.lastDeliveredAt || null,
+      lastDeliveredAt: latestDeliveredAt,
+      firstDeliveredAt,
       createdAt: customer.createdAt,
     };
   });
@@ -130,6 +146,9 @@ type CampaignRecord = {
   customerDiscountPct?: number;
   commissionPct?: number;
   durationLabel?: string | null;
+  audienceCount?: number;
+  eligibleCount?: number;
+  message?: string | null;
 };
 
 function campaignJson(campaign: CampaignRecord) {
@@ -144,6 +163,9 @@ function campaignJson(campaign: CampaignRecord) {
     customerDiscountPct: campaign.customerDiscountPct || 0,
     commissionPct: campaign.commissionPct || 0,
     durationLabel: campaign.durationLabel || null,
+    audienceCount: campaign.audienceCount || 0,
+    eligibleCount: campaign.eligibleCount || 0,
+    message: campaign.message || null,
     influencers: [],
     placed: 0,
     delivered: 0,
@@ -183,19 +205,82 @@ export async function studioGet(userId: string, path: string, search = new URLSe
           }
         : null,
       lastSyncAt: connection?.lastSyncAt || null,
+      lastSyncStartedAt: connection?.lastSyncStartedAt || null,
+      lastSyncError: connection?.lastSyncError || null,
+      lastSyncOrderCount: connection?.lastSyncOrderCount || 0,
+      lastWebhookAt: connection?.lastWebhookAt || null,
+      lastWebhookError: connection?.lastWebhookError || null,
       connectedAt: connection?.connectedAt || null,
-      webhooksActive: Boolean(connection?.webhookIds?.length),
+      webhooksActive: connection?.webhookIds?.length === 2,
+      health: !connection
+        ? "disconnected"
+        : connection.lastSyncError || connection.lastWebhookError || connection.webhookIds?.length !== 2
+          ? "attention"
+          : connection.lastSyncAt && Date.now() - new Date(connection.lastSyncAt).getTime() <= 86_400_000
+            ? "healthy" : "stale",
     };
+  }
+
+  if (clean === "account") {
+    const [user, connection, customerCount] = await Promise.all([
+      StudioUser.findById(userId).lean(),
+      StudioConvertyConnection.findOne({ user: userId }).lean(),
+      StudioCustomer.countDocuments({ user: userId }),
+    ]);
+    if (!user) throw Object.assign(new Error("Account not found"), { status: 404 });
+    const subscription = (await ensureSubscription(userId)).toObject();
+    return {
+      profile: { email: user.email || "", shopName: user.shopName, ownerName: user.ownerName || "", currency: connection?.currency || user.currency || "TND" },
+      subscription: {
+        plan: "fidely", price: FIDELY_MONTHLY_PRICE,
+        status: effectiveSubscription(subscription.status, subscription.trialEndsAt),
+        rawStatus: subscription.status, trialEndsAt: subscription.trialEndsAt,
+        currentPeriodEndsAt: subscription.currentPeriodEndsAt || null,
+        entitlements: FIDELY_ENTITLEMENTS, customerCount,
+        billingConfigured: Boolean(process.env.STRIPE_SECRET_KEY && process.env.STRIPE_FIDELY_PRICE_ID),
+      },
+      onboarding: {
+        profileComplete: Boolean(user.email && user.shopName),
+        storeConnected: Boolean(connection),
+        firstSyncComplete: Boolean(connection?.lastSyncAt),
+      },
+    };
+  }
+
+  if (clean === "account/export") {
+    const [user, customers, orders, campaigns, campaignRecipients, influencers, configs, subscription] = await Promise.all([
+      StudioUser.findById(userId).select("email shopName ownerName currency createdAt updatedAt").lean(),
+      StudioCustomer.find({ user: userId }).select("-user").lean(),
+      StudioOrder.find({ user: userId }).select("-user -raw").lean(),
+      StudioCampaign.find({ user: userId }).select("-user").lean(),
+      StudioCampaignRecipient.find({ user: userId }).select("-user -destination").lean(),
+      StudioInfluencer.find({ user: userId }).select("-user").lean(),
+      StudioConfig.find({ user: userId }).select("-user").lean(),
+      StudioSubscription.findOne({ user: userId }).select("-user -providerCustomerId -providerSubscriptionId").lean(),
+    ]);
+    return { exportedAt: new Date(), profile: user, subscription, customers, orders, campaigns, campaignRecipients, influencers, settings: configs };
   }
 
   if (clean === "customers" || clean === "loyalty/customers") {
     let rows = await customerRows(userId);
     const q = search.get("q")?.toLowerCase();
     const source = search.get("source");
+    const segment = search.get("segment") as SegmentKey | null;
+    const from = search.get("from") ? new Date(`${search.get("from")}T00:00:00Z`) : null;
+    const to = search.get("to") ? new Date(`${search.get("to")}T23:59:59.999Z`) : null;
     if (q) rows = rows.filter((row) => `${row.name} ${row.phone}`.toLowerCase().includes(q));
     if (source) rows = rows.filter((row) => row.source?.type === source);
+    if (from && Number.isFinite(from.getTime())) rows = rows.filter((row) => row.lastDeliveredAt && new Date(row.lastDeliveredAt) >= from);
+    if (to && Number.isFinite(to.getTime())) rows = rows.filter((row) => row.lastDeliveredAt && new Date(row.lastDeliveredAt) <= to);
+    if (segment) {
+      const classification = classifyCustomers(rows);
+      if (segment in classification.members) {
+        rows = rows.filter((row) => isInSegment(row, segment, classification.storeAvgBasket));
+      }
+    }
     if (clean === "loyalty/customers") rows = rows.filter((row) => row.points > 0);
-    return { customers: rows, total: rows.length };
+    const connection = await StudioConvertyConnection.findOne({ user: userId }).select("currency").lean();
+    return { customers: rows, total: rows.length, currency: connection?.currency || "TND" };
   }
 
   if (clean.startsWith("customers/")) {
@@ -276,30 +361,27 @@ export async function studioGet(userId: string, path: string, search = new URLSe
   if (clean === "widgets") return { config: await config(userId, "widgets", widgetDefaults) };
 
   const customers = await customerRows(userId);
-  const now = Date.now();
+  const classification = classifyCustomers(customers);
+  const analyticsConnection = await StudioConvertyConnection.findOne({ user: userId }).select("currency").lean();
   const segments = {
-    storeAvgBasket: customers.length ? Math.round(customers.reduce((sum, c) => sum + c.spent, 0) / Math.max(1, customers.reduce((sum, c) => sum + c.delivered, 0))) : 0,
+    storeAvgBasket: classification.storeAvgBasket,
+    currency: analyticsConnection?.currency || "TND",
     counts: {
-      vip: customers.filter((c) => c.spent >= 1000).length,
-      atRisk: customers.filter((c) => {
-        if (!c.lastDeliveredAt) return false;
-        const age = now - new Date(c.lastDeliveredAt).getTime();
-        return age >= 60 * 864e5 && age < 90 * 864e5;
-      }).length,
-      dormant: customers.filter((c) => {
-        if (!c.lastDeliveredAt) return false;
-        return now - new Date(c.lastDeliveredAt).getTime() >= 90 * 864e5;
-      }).length,
-      closeReward: customers.filter((c) => c.points >= 70 && c.points < 100).length,
-      influencerAcquired: customers.filter((c) => c.source?.type === "influencer").length,
+      vip: classification.members.vip.length,
+      atRisk: classification.members.atRisk.length,
+      dormant: classification.members.dormant.length,
+      closeReward: classification.members.closeReward.length,
+      influencerAcquired: classification.members.influencerAcquired.length,
       referralChampions: 0,
-      highBasket: customers.filter((c) => c.spent >= 500).length,
+      highBasket: classification.members.highBasket.length,
     },
   };
   if (clean === "segments") return segments;
   if (clean === "cohorts") {
+    const sourceFilter = search.get("source");
+    const cohortCustomers = sourceFilter ? customers.filter((customer) => customer.source?.type === sourceFilter) : customers;
     const bySourceMap = new Map<string, typeof customers>();
-    for (const customer of customers) {
+    for (const customer of cohortCustomers) {
       const source = customer.source?.type || "direct";
       bySourceMap.set(source, [...(bySourceMap.get(source) || []), customer]);
     }
@@ -314,8 +396,9 @@ export async function studioGet(userId: string, path: string, search = new URLSe
       };
     });
     const monthMap = new Map<string, typeof customers>();
-    for (const customer of customers) {
-      const date = new Date(customer.createdAt);
+    for (const customer of cohortCustomers) {
+      if (!customer.firstDeliveredAt) continue;
+      const date = new Date(customer.firstDeliveredAt);
       const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
       monthMap.set(key, [...(monthMap.get(key) || []), customer]);
     }
@@ -330,7 +413,8 @@ export async function studioGet(userId: string, path: string, search = new URLSe
         repeatPct: rows.length ? Math.round((rows.filter((row) => row.delivered >= 2).length / rows.length) * 100) : 0,
         sales: rows.reduce((sum, row) => sum + row.spent, 0),
       }));
-    return { bySource, byMonth };
+    const connection = await StudioConvertyConnection.findOne({ user: userId }).select("currency").lean();
+    return { bySource, byMonth, currency: connection?.currency || "TND" };
   }
 
   if (clean === "overview") {
@@ -370,7 +454,7 @@ export async function studioGet(userId: string, path: string, search = new URLSe
     const newCustomers = series(customerValues);
     const campaigns = await StudioCampaign.find({ user: userId }).limit(4).lean();
     return {
-      store: { name: user?.shopName || "Store", logoUrl: user?.logoUrl || null },
+      store: { name: user?.shopName || "Store", logoUrl: user?.logoUrl || null, currency: connection?.currency || user?.currency || "TND" },
       converty: { connected: Boolean(connection), storeName: connection?.storeName || null, lastSyncAt: connection?.lastSyncAt || null, connectedAt: connection?.connectedAt || null },
       kpis: { sales, delivered: deliveredSeries, cost, customers: newCustomers, totalCustomers: customers.length },
       chart: { labels, series: { sales, delivered: deliveredSeries, cost, customers: newCustomers } },

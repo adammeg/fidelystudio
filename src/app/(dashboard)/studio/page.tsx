@@ -22,12 +22,13 @@ function trend(value: number) {
 export default async function StudioOverview({ searchParams }: { searchParams: Promise<{ days?: string }> }) {
   const sp = await searchParams;
   const days = Math.min(90, Math.max(7, Number(sp.days) || 30));
-  const { kpis, chart, advanced, segments } = await getOverview(days);
+  const { kpis, chart, advanced, segments, store } = await getOverview(days);
+  const currency = store.currency;
 
   const series: Record<ChartKey, ChartSeriesInput> = {
-    sales: { label: "Delivered revenue", unit: "TND", total: fmt(kpis.sales.total), trend: trend(kpis.sales.trend), color: "#C8744F", fill: "rgba(200,116,79,.16)", v: chart.series.sales.v },
+    sales: { label: "Delivered revenue", unit: currency, total: fmt(kpis.sales.total), trend: trend(kpis.sales.trend), color: "#C8744F", fill: "rgba(200,116,79,.16)", v: chart.series.sales.v },
     delivered: { label: "Delivered orders", unit: "orders", total: fmt(kpis.delivered.total), trend: trend(kpis.delivered.trend), color: "#7C5A43", fill: "rgba(124,90,67,.14)", v: chart.series.delivered.v },
-    cost: { label: "Product cost", unit: "TND", total: fmt(kpis.cost.total), trend: trend(kpis.cost.trend), color: "#C98A2B", fill: "rgba(201,138,43,.15)", v: chart.series.cost.v },
+    cost: { label: "Product cost", unit: currency, total: fmt(kpis.cost.total), trend: trend(kpis.cost.trend), color: "#C98A2B", fill: "rgba(201,138,43,.15)", v: chart.series.cost.v },
     customers: { label: "New customers", unit: "customers", total: fmt(kpis.customers.total), trend: trend(kpis.customers.trend), color: "#3E8E5A", fill: "rgba(62,142,90,.14)", v: chart.series.customers.v },
   };
   const indices = chart.labels.length
@@ -35,18 +36,18 @@ export default async function StudioOverview({ searchParams }: { searchParams: P
     : [];
   const xLabels = indices.map((i) => labelFor(chart.labels[i]));
   const metrics = [
-    { label: "Average order", sub: "Delivered revenue per order", value: `${kpis.delivered.total ? Math.round(kpis.sales.total / kpis.delivered.total) : 0} TND` },
+    { label: "Average order", sub: "Delivered revenue per order", value: `${kpis.delivered.total ? Math.round(kpis.sales.total / kpis.delivered.total) : 0} ${currency}` },
     { label: "Delivery rate", sub: "Delivered divided by placed", value: `${advanced.deliveryRate}%` },
-    { label: "Product margin", sub: "Revenue minus known product cost", value: `${Math.max(0, kpis.sales.total - kpis.cost.total).toLocaleString("en-US")} TND` },
+    { label: "Product margin", sub: "Revenue minus known product cost", value: `${Math.max(0, kpis.sales.total - kpis.cost.total).toLocaleString("en-US")} ${currency}` },
     { label: "Observation window", sub: "Selected dashboard period", value: `${days} days` },
   ];
 
   const cards = [
-    ["Delivered revenue", `${fmt(kpis.sales.total)} TND`, trend(kpis.sales.trend)],
+    ["Delivered revenue", `${fmt(kpis.sales.total)} ${currency}`, trend(kpis.sales.trend)],
     ["Delivered orders", fmt(kpis.delivered.total), trend(kpis.delivered.trend)],
-    ["Known product cost", `${fmt(kpis.cost.total)} TND`, trend(kpis.cost.trend)],
+    ["Known product cost", `${fmt(kpis.cost.total)} ${currency}`, trend(kpis.cost.trend)],
     ["New customers", fmt(kpis.customers.total), trend(kpis.customers.trend)],
-    ["At-risk customers", fmt(segments.counts.atRisk), "No delivery in 60 days"],
+    ["At-risk customers", fmt(segments.counts.atRisk), "Last delivery 60–89 days ago"],
   ];
 
   return (

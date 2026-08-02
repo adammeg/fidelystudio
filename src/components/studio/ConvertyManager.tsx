@@ -292,20 +292,33 @@ export default function ConvertyManager({ initial, callbackStatus, callbackMessa
           </div>
 
           <div className="stat-row">
-
-            <span>Last sync</span>
-
-            <b>{status.lastSyncAt ? syncAgo(status.lastSyncAt) : "Never"}</b>
-
+            <span>Data health</span>
+            <b style={{ color: status.health === "healthy" ? "var(--pos-fg)" : status.health === "attention" ? "#C2603C" : undefined }}>
+              {status.health === "healthy" ? "Healthy" : status.health === "attention" ? "Needs attention" : "Sync overdue"}
+            </b>
           </div>
-
           <div className="stat-row">
-
-            <span>Webhooks</span>
-
-            <b>{status.webhooksActive ? "Active" : "Inactive"}</b>
-
+            <span>Last sync</span>
+            <b>{status.lastSyncAt ? syncAgo(status.lastSyncAt) : "Never"}</b>
           </div>
+          <div className="stat-row">
+            <span>Last reconciliation</span>
+            <b>{status.lastSyncAt ? `${status.lastSyncOrderCount} orders processed` : "Not run"}</b>
+          </div>
+          <div className="stat-row">
+            <span>Last webhook received</span>
+            <b>{status.lastWebhookAt ? syncAgo(status.lastWebhookAt) : "None yet"}</b>
+          </div>
+          <div className="stat-row">
+            <span>Webhooks</span>
+            <b>{status.webhooksActive ? "Active" : "Inactive"}</b>
+          </div>
+          {(status.lastSyncError || status.lastWebhookError) && (
+            <div className="stat-row">
+              <span>Latest error</span>
+              <b style={{ color: "#C2603C", maxWidth: 420, textAlign: "right" }}>{status.lastSyncError || status.lastWebhookError}</b>
+            </div>
+          )}
 
         </div>
 
@@ -335,9 +348,9 @@ export default function ConvertyManager({ initial, callbackStatus, callbackMessa
 
           <>
 
-            <button className="btn btn-primary" onClick={sync} disabled={busy !== null}>
+            <button className="btn btn-secondary" onClick={sync} disabled={busy !== null}>
 
-              {busy === "sync" ? "Syncing…" : "Sync orders now"}
+              {busy === "sync" ? "Syncing…" : "Run backup sync"}
 
             </button>
 

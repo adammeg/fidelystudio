@@ -34,7 +34,7 @@ export async function getSessionUser(): Promise<SessionUser> {
   if (!user) redirect("/login");
   return {
     id: String(user._id),
-    role: "shop",
+    role: user.role === "admin" ? "admin" : "shop",
     email: user.email || "",
     shopName: user.shopName || null,
     ownerName: user.ownerName || null,

@@ -52,6 +52,9 @@ export interface ApiCampaign {
   customerDiscountPct: number;
   commissionPct: number;
   durationLabel: string | null;
+  audienceCount: number;
+  eligibleCount: number;
+  message: string | null;
   influencers: { id: string; handle: string; initial: string; avatarBg: string }[];
   placed: number;
   delivered: number;
@@ -63,6 +66,7 @@ export interface ApiCampaign {
 
 export interface ApiSegments {
   storeAvgBasket: number;
+  currency: string;
   counts: {
     vip: number;
     atRisk: number;
@@ -86,12 +90,18 @@ export interface ConvertyStatus {
     country: string | null;
   } | null;
   lastSyncAt: string | null;
+  lastSyncStartedAt: string | null;
+  lastSyncError: string | null;
+  lastSyncOrderCount: number;
+  lastWebhookAt: string | null;
+  lastWebhookError: string | null;
   connectedAt: string | null;
   webhooksActive?: boolean;
+  health: "healthy" | "attention" | "stale" | "disconnected";
 }
 
 export interface Overview {
-  store: { name: string; logoUrl: string | null };
+  store: { name: string; logoUrl: string | null; currency: string };
   converty: {
     connected: boolean;
     storeName: string | null;
@@ -126,6 +136,7 @@ export interface ApiCustomer {
   refused: number;
   spent: number;
   lastDeliveredAt: string | null;
+  firstDeliveredAt: string | null;
   createdAt: string;
 }
 
@@ -186,14 +197,32 @@ export interface WidgetConfig {
 }
 
 export interface CohortsData {
+  currency: string;
   bySource: { source: string; customers: number; secondDelivered: number; repeatPct: number; revenue: number }[];
   byMonth: { month: string; monthKey: string; newCustomers: number; second: number; third: number; repeatPct: number; sales: number }[];
+}
+
+export interface AccountData {
+  profile: { email: string; shopName: string; ownerName: string; currency: string };
+  subscription: {
+    plan: "fidely";
+    price: { amount: 50; currency: "TND"; interval: "month" };
+    status: "active" | "trialing" | "restricted";
+    rawStatus: string;
+    trialEndsAt: string;
+    currentPeriodEndsAt: string | null;
+    customerCount: number;
+    billingConfigured: boolean;
+    entitlements: { customerLimit: number; stores: number; csvExport: boolean; campaigns: boolean; teamMembers: number };
+  };
+  onboarding: { profileComplete: boolean; storeConnected: boolean; firstSyncComplete: boolean };
 }
 
 /* ---------- fetchers ---------- */
 
 export const getOverview = (days = 30) => get<Overview>(`/studio/overview?days=${days}`);
 export const getConvertyStatus = () => get<ConvertyStatus>("/studio/converty/status");
+export const getAccount = () => get<AccountData>("/studio/account");
 export const getInfluencers = () => get<{ influencers: ApiInfluencer[] }>("/studio/influencers");
 export const getCampaigns = () => get<{ campaigns: ApiCampaign[] }>("/studio/campaigns");
 export const getCampaign = (slug: string) =>
@@ -201,10 +230,10 @@ export const getCampaign = (slug: string) =>
     `/studio/campaigns/${encodeURIComponent(slug)}`
   );
 export const getReferral = () => get<ReferralData>("/studio/referral");
-export const getCustomers = (qs = "") => get<{ customers: ApiCustomer[] }>(`/studio/customers${qs}`);
+export const getCustomers = (qs = "") => get<{ customers: ApiCustomer[]; currency: string }>(`/studio/customers${qs}`);
 export const getCustomer = (id: string) => get<CustomerDetail>(`/studio/customers/${encodeURIComponent(id)}`);
 export const getSegments = () => get<ApiSegments>("/studio/segments");
-export const getCohorts = () => get<CohortsData>("/studio/cohorts");
+export const getCohorts = (qs = "") => get<CohortsData>(`/studio/cohorts${qs}`);
 export const getLoyalty = () => get<LoyaltyData>("/studio/loyalty");
 export const getLoyaltyCustomers = () => get<{ customers: ApiCustomer[] }>("/studio/loyalty/customers");
 export const getWidgets = () => get<{ config: WidgetConfig }>("/studio/widgets");

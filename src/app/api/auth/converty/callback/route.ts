@@ -15,6 +15,7 @@ import {
 import { createSession, SESSION_COOKIE } from "@/server/auth";
 import { decryptSecret, encryptSecret, randomToken, sha256 } from "@/server/security";
 import { setupWebhooksForUser, syncOrdersForUser } from "@/server/converty-sync";
+import { ensureSubscription } from "@/server/subscriptions";
 
 const appUrl = (path: string) =>
   new URL(path, studioAppUrl());
@@ -65,6 +66,7 @@ export async function GET(req: NextRequest) {
       { new: true, upsert: true, setDefaultsOnInsert: true }
     );
 
+    await ensureSubscription(String(user._id));
     const existingConnection = await StudioConvertyConnection.findOne({ user: user._id })
       .select("webhookSecret webhookSecretHash")
       .lean();
@@ -102,9 +104,7 @@ export async function GET(req: NextRequest) {
       );
     }
     try {
-      if (convertyScopes().includes("create-hooks")) {
-        await setupWebhooksForUser(String(user._id));
-      }
+      await setupWebhooksForUser(String(user._id));
     } catch (setupError) {
       setupMessages.push(
         setupError instanceof Error

@@ -3,8 +3,9 @@ import ConvertySyncCrumb from "@/components/studio/ConvertySyncCrumb";
 import { getCohorts } from "@/lib/studio";
 import { fmt } from "@/lib/format";
 
-export default async function CohortsPage() {
-  const cohorts = await getCohorts();
+export default async function CohortsPage({ searchParams }: { searchParams: Promise<{ source?: string }> }) {
+  const sp = await searchParams;
+  const cohorts = await getCohorts(sp.source ? `?source=${encodeURIComponent(sp.source)}` : "");
   const tabs = [
     { label: "Segments", href: "/customers/segments" },
     { label: "All customers", href: "/customers" },
@@ -20,13 +21,18 @@ export default async function CohortsPage() {
         <div className="ec-c">A repeat customer has at least two orders marked delivered by Converty.</div></div>
       </div>
       <section className="panel block">
-        <div className="p-head"><div><h3>By first delivered month</h3><div className="sub">Repeat behavior over time</div></div></div>
+        <div className="p-head"><div><h3>By first delivered month</h3><div className="sub">Repeat behavior over time</div></div>
+          <form action="/customers/cohorts"><select name="source" defaultValue={sp.source || ""} aria-label="Acquisition source">
+            <option value="">All sources</option><option value="direct">Direct</option><option value="influencer">Influencer</option>
+            <option value="referral">Referral</option><option value="campaign">Campaign</option><option value="ads">Ads</option>
+          </select><button className="btn btn-secondary" type="submit">Apply</button></form>
+        </div>
         {cohorts.byMonth.length ? <div className="table-scroll"><table>
           <thead><tr><th>Month</th><th className="num">New customers</th><th className="num">Second delivery</th><th className="num">Third delivery</th><th>Repeat rate</th><th className="num">Revenue</th></tr></thead>
           <tbody>{cohorts.byMonth.map((row) => <tr key={row.monthKey}>
             <td><b>{row.month}</b></td><td className="num">{fmt(row.newCustomers)}</td><td className="num">{fmt(row.second)}</td>
             <td className="num">{fmt(row.third)}</td><td><span className="rrate"><span className="bar"><i style={{ width: `${Math.min(100, Math.max(0, row.repeatPct))}%` }} /></span><span className="pct">{row.repeatPct}%</span></span></td>
-            <td className="num">{fmt(row.sales)} TND</td>
+            <td className="num">{fmt(row.sales)} {cohorts.currency}</td>
           </tr>)}</tbody>
         </table></div> : <div className="empty-state"><h3>No cohort data yet</h3><p>Delivered orders will appear here after your first successful sync.</p></div>}
       </section>

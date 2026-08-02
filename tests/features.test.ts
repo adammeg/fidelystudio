@@ -5,13 +5,11 @@ import {
 } from "../src/lib/features";
 
 describe("supported product surface", () => {
-  it("keeps WhatsApp campaigns disabled", () => {
+  it("keeps direct WhatsApp sending disabled until a provider is connected", () => {
     expect(PRODUCT_FEATURES.whatsappCampaigns).toBe(false);
   });
 
   it.each([
-    "campaigns",
-    "campaigns/example",
     "influencers",
     "referral",
     "loyalty",
@@ -20,7 +18,7 @@ describe("supported product surface", () => {
     expect(isUnsupportedStudioApi(path)).toBe(true);
   });
 
-  it.each(["overview", "customers", "segments", "cohorts", "converty/status"])(
+  it.each(["overview", "customers", "segments", "cohorts", "campaigns", "campaigns/example", "converty/status"])(
     "keeps supported Studio API %s available",
     (path) => {
       expect(isUnsupportedStudioApi(path)).toBe(false);

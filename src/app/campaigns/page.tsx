@@ -1,6 +1,6 @@
 import ConvertySyncCrumb from "@/components/studio/ConvertySyncCrumb";
 import CampaignBuilder, { type SegmentOption } from "@/components/studio/CampaignBuilder";
-import { getSegments } from "@/lib/studio";
+import { getCampaigns, getSegments } from "@/lib/studio";
 import { getSessionUser } from "@/lib/session";
 import Link from "next/link";
 
@@ -15,7 +15,7 @@ export default async function CampaignBuilderPage({
 }: {
   searchParams: Promise<{ segment?: string; incentive?: string; goal?: string; name?: string; type?: string }>;
 }) {
-  const [seg, user, sp] = await Promise.all([getSegments(), getSessionUser(), searchParams]);
+  const [seg, user, sp, existing] = await Promise.all([getSegments(), getSessionUser(), searchParams, getCampaigns()]);
   const c = seg.counts;
   const segments: SegmentOption[] = [
     { key: "closeReward", name: "Close to a reward", rule: "Within reach of their next reward", count: c.closeReward },
@@ -47,6 +47,13 @@ export default async function CampaignBuilderPage({
       </header>
 
       <div className="content">
+        {existing.campaigns.length > 0 && <section className="panel block">
+          <div className="p-head"><div><h3>Campaign drafts</h3><div className="sub">Sending remains locked until a messaging provider is connected.</div></div></div>
+          <div className="stat-list">{existing.campaigns.map((campaign) => <div className="stat-row" key={campaign.id}>
+            <span><b>{campaign.name}</b> · {campaign.state}</span>
+            <b>{campaign.eligibleCount} eligible / {campaign.audienceCount} customers</b>
+          </div>)}</div>
+        </section>}
         {/* STEPPER */}
         <div className="stepper" data-screen-label="Stepper">
           {["Who", "What", "Where", "Goal"].map((lab, i) => (

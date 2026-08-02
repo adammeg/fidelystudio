@@ -5,12 +5,12 @@ import { getSegments } from "@/lib/studio";
 import { fmt } from "@/lib/format";
 
 export default async function SegmentsPage() {
-  const { counts, storeAvgBasket } = await getSegments();
+  const { counts, storeAvgBasket, currency } = await getSegments();
   const segments = [
-    { name: "VIP customers", count: counts.vip, rule: "High-value repeat buyers with several delivered orders." },
-    { name: "At-risk customers", count: counts.atRisk, rule: "No delivered order in the last 60 days." },
-    { name: "Dormant customers", count: counts.dormant, rule: "Bought before, but no delivered order in 90 days." },
-    { name: "High basket customers", count: counts.highBasket, rule: `Average delivered basket is above the store average of ${fmt(storeAvgBasket)} TND.` },
+    { key: "vip", name: "VIP customers", count: counts.vip, rule: `At least 2 delivered orders and 1,000 ${currency} in delivered revenue.` },
+    { key: "atRisk", name: "At-risk customers", count: counts.atRisk, rule: "Last delivered order was 60–89 days ago." },
+    { key: "dormant", name: "Dormant customers", count: counts.dormant, rule: "Last delivered order was at least 90 days ago." },
+    { key: "highBasket", name: "High basket customers", count: counts.highBasket, rule: `Average delivered basket is above the store average of ${fmt(storeAvgBasket)} ${currency}.` },
   ];
   const tabs = [
     { label: "Segments", href: "/customers/segments", count: segments.length },
@@ -31,7 +31,7 @@ export default async function SegmentsPage() {
           <div className="s-name">{segment.name}</div>
           <div className="s-rule">{segment.rule}</div>
           <div className="s-count">{fmt(segment.count)} <span className="u">customers</span></div>
-          <Link href="/customers" className="btn btn-secondary">Explore customers</Link>
+          <Link href={`/customers?segment=${segment.key}`} className="btn btn-secondary">Explore customers</Link>
         </article>)}
       </section>
     </div>

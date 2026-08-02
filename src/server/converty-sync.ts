@@ -1,5 +1,5 @@
 import { convertyApi, studioAppUrl } from "./converty";
-import { StudioConvertyConnection, StudioCustomer, StudioOrder } from "./models";
+import { StudioCampaignRecipient, StudioConvertyConnection, StudioCustomer, StudioOrder } from "./models";
 import { decryptSecret } from "./security";
 
 export type ConvertyOrder = {
@@ -44,8 +44,31 @@ export function deliveredAt(order: ConvertyOrder) {
     : null;
 }
 
+export function sourceUpdatedAt(order: ConvertyOrder) {
+  const value = new Date(order.updatedAt || order.createdAt || 0);
+  return Number.isFinite(value.getTime()) ? value : new Date(0);
+}
+
+async function withRetries<T>(operation: () => Promise<T>, attempts = 3) {
+  let lastError: unknown;
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    try {
+      return await operation();
+    } catch (error) {
+      lastError = error;
+      if (attempt < attempts) await new Promise((resolve) => setTimeout(resolve, attempt * 250));
+    }
+  }
+  throw lastError;
+}
+
 export async function syncOrder(userId: string, order: ConvertyOrder) {
   if (!order._id || !order.customer?.phone) return false;
+  const incomingUpdatedAt = sourceUpdatedAt(order);
+  const existing = await StudioOrder.findOne({ user: userId, convertyOrderId: String(order._id) })
+    .select("sourceUpdatedAt updatedAt").lean();
+  const existingUpdatedAt = existing?.sourceUpdatedAt || existing?.updatedAt;
+  if (existingUpdatedAt && new Date(existingUpdatedAt).getTime() > incomingUpdatedAt.getTime()) return false;
   const status = normalizedStatus(order);
   const delivered = deliveredAt(order);
   const customer = await StudioCustomer.findOneAndUpdate(
@@ -64,8 +87,22 @@ export async function syncOrder(userId: string, order: ConvertyOrder) {
     (sum, item) => sum + (item.product?.cost || 0) * (item.quantity || 1),
     0
   );
-  await StudioOrder.findOneAndUpdate(
-    { user: userId, convertyOrderId: String(order._id) },
+  const placedAt = new Date(order.createdAt || Date.now());
+  const attributedRecipient = await StudioCampaignRecipient.findOne({
+    user: userId, customer: customer._id, status: { $in: ["sent", "delivered"] },
+    sentAt: { $lte: placedAt, $gte: new Date(placedAt.getTime() - 14 * 86_400_000) },
+  }).sort({ sentAt: -1 }).select("campaign").lean();
+  const orderFilter = existing
+    ? {
+        _id: existing._id,
+        $or: [
+          { sourceUpdatedAt: { $lte: incomingUpdatedAt } },
+          { sourceUpdatedAt: null },
+        ],
+      }
+    : { user: userId, convertyOrderId: String(order._id) };
+  const updated = await StudioOrder.findOneAndUpdate(
+    orderFilter,
     {
       customer: customer._id,
       reference: order.reference == null ? null : String(order.reference),
@@ -74,44 +111,47 @@ export async function syncOrder(userId: string, order: ConvertyOrder) {
       amount: order.total?.totalPrice || 0,
       cost: productCost + (order.total?.deliveryCost || 0),
       raw: order,
-      placedAt: new Date(order.createdAt || Date.now()),
+      placedAt,
       deliveredAt: delivered,
+      sourceUpdatedAt: incomingUpdatedAt,
+      attributedCampaign: attributedRecipient?.campaign || null,
     },
-    { upsert: true, new: true, setDefaultsOnInsert: true }
+    { upsert: !existing, new: true, setDefaultsOnInsert: true }
   );
-  return true;
+  return Boolean(updated);
 }
 
 export async function syncOrdersForUser(userId: string, maxPages = 20) {
   const connection = await StudioConvertyConnection.findOne({ user: userId });
   if (!connection) throw new Error("Converty is not connected");
-  let synced = 0;
-  for (let page = 1; page <= maxPages; page += 1) {
-    const result = await convertyApi<{ data?: ConvertyOrder[] }>(
-      connection as ConnectionDocument,
-      `/orders?page=${page}&limit=200`
-    );
-    const orders = result.data || [];
-    for (const order of orders) {
-      if (await syncOrder(userId, order)) synced += 1;
-    }
-    if (orders.length < 200) break;
-  }
-  connection.lastSyncAt = new Date();
+  connection.lastSyncStartedAt = new Date();
+  connection.lastSyncError = null;
   await connection.save();
-  return { synced, lastSyncAt: connection.lastSyncAt };
+  let synced = 0;
+  try {
+    for (let page = 1; page <= maxPages; page += 1) {
+      const result = await withRetries(() => convertyApi<{ data?: ConvertyOrder[] }>(
+        connection as ConnectionDocument, `/orders?page=${page}&limit=200`
+      ));
+      const orders = result.data || [];
+      for (const order of orders) if (await syncOrder(userId, order)) synced += 1;
+      if (orders.length < 200) break;
+    }
+    connection.lastSyncAt = new Date();
+    connection.lastSyncOrderCount = synced;
+    connection.lastSyncError = null;
+    await connection.save();
+    return { synced, lastSyncAt: connection.lastSyncAt };
+  } catch (error) {
+    connection.lastSyncError = error instanceof Error ? error.message.slice(0, 500) : "Synchronization failed";
+    await connection.save();
+    throw error;
+  }
 }
 
 export async function setupWebhooksForUser(userId: string) {
   const connection = await StudioConvertyConnection.findOne({ user: userId });
   if (!connection) throw new Error("Converty is not connected");
-  const required = ["read-hooks", "create-hooks", "delete-hooks"];
-  if (!required.every((scope) => connection.scopes.includes(scope))) {
-    throw Object.assign(
-      new Error("Webhook access is not enabled for this Converty integration"),
-      { status: 403 }
-    );
-  }
   const base = studioAppUrl();
   const targetUrl = `${base}/api/converty/webhooks/${decryptSecret(connection.webhookSecret)}`;
   const result = await convertyApi<{
@@ -138,6 +178,45 @@ export async function setupWebhooksForUser(userId: string) {
   connection.webhookIds = [...new Set(ids)];
   await connection.save();
   return { webhooksActive: connection.webhookIds.length === 2 };
+}
+
+export async function syncAllConnectedStores(maxPages = 2) {
+  const connections = await StudioConvertyConnection.find({}).select("user webhookIds").lean();
+  const results: {
+    userId: string;
+    synced: number;
+    webhooksActive: boolean;
+    error?: string;
+    webhookError?: string;
+  }[] = [];
+  for (const connection of connections) {
+    const userId = String(connection.user);
+    let synced = 0;
+    let error: string | undefined;
+    let webhookError: string | undefined;
+    try {
+      const result = await syncOrdersForUser(userId, maxPages);
+      synced = result.synced;
+    } catch (syncError) {
+      error = syncError instanceof Error ? syncError.message : "Automatic sync failed";
+    }
+    let webhooksActive = connection.webhookIds?.length === 2;
+    if (!webhooksActive) {
+      try {
+        const setup = await setupWebhooksForUser(userId);
+        webhooksActive = setup.webhooksActive;
+      } catch (setupError) {
+        webhookError = setupError instanceof Error ? setupError.message : "Webhook setup failed";
+      }
+    }
+    results.push({ userId, synced, webhooksActive, ...(error ? { error } : {}), ...(webhookError ? { webhookError } : {}) });
+  }
+  return {
+    stores: results.length,
+    succeeded: results.filter((result) => !result.error).length,
+    failed: results.filter((result) => result.error).length,
+    results,
+  };
 }
 
 export async function teardownWebhooksForUser(userId: string) {

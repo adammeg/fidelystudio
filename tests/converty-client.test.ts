@@ -8,6 +8,7 @@ import {
   exchangeAuthorizationCode,
   storeInfoWithToken,
 } from "../src/server/converty";
+import { deliveredAt, normalizedStatus, sourceUpdatedAt } from "../src/server/converty-sync";
 
 describe("Converty OAuth contract", () => {
   beforeEach(() => {
@@ -120,5 +121,26 @@ describe("Converty OAuth contract", () => {
     expect(convertyDomain({ host: "store.example.com" })).toBe(
       "store.example.com"
     );
+  });
+});
+
+describe("Converty order normalization", () => {
+  it("normalizes COD terminal statuses", () => {
+    expect(normalizedStatus({ _id: "1", status: "rejected" })).toBe("refused");
+    expect(normalizedStatus({ _id: "1", status: "in transit" })).toBe("in_transit");
+    expect(normalizedStatus({ _id: "1", archived: true })).toBe("cancelled");
+  });
+
+  it("uses the latest delivered history event", () => {
+    const date = deliveredAt({ _id: "1", history: [
+      { status: "delivered", timestamp: 1000 },
+      { status: "delivered", timestamp: 2000 },
+    ] });
+    expect(date?.getTime()).toBe(2000);
+  });
+
+  it("uses the source update time to order webhook events", () => {
+    expect(sourceUpdatedAt({ _id: "1", createdAt: "2026-01-01T00:00:00Z" }).toISOString()).toBe("2026-01-01T00:00:00.000Z");
+    expect(sourceUpdatedAt({ _id: "1", createdAt: "2026-01-01T00:00:00Z", updatedAt: "2026-02-01T00:00:00Z" }).toISOString()).toBe("2026-02-01T00:00:00.000Z");
   });
 });

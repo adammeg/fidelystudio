@@ -108,10 +108,11 @@ export default function CampaignBuilder({
           commissionPct: type === "influencer" ? 8 : 0,
           segmentKey: segKey || undefined,
           incentiveType: incentive,
+          message,
         }),
       });
       if (!res.ok) throw new Error((await res.json().catch(() => ({}))).message || "Launch failed");
-      router.push(type === "influencer" ? "/influence" : "/");
+      router.push("/studio");
       router.refresh();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Launch failed");
@@ -269,7 +270,7 @@ export default function CampaignBuilder({
                 <circle cx="12" cy="12" r="9" />
                 <path d="M8.5 12l2.5 2.5 4.5-5" />
               </svg>
-              Ready to launch
+              Ready to save
             </div>
             <div className="est-chips">
               <span className={`chip-i ${est.risk.cls}`}>
@@ -336,7 +337,7 @@ export default function CampaignBuilder({
             <div className="est-cta">
               <button className="btn btn-primary" onClick={launch} disabled={launching}>
                 <Check />
-                {launching ? "Launching…" : "Launch campaign"}
+                {launching ? "Saving…" : "Save campaign draft"}
               </button>
             </div>
           </div>

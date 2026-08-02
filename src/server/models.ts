@@ -9,7 +9,7 @@ const UserSchema = new Schema(
     logoUrl: { type: String, default: null },
     currency: { type: String, default: "DZD" },
     country: { type: String, default: null },
-    role: { type: String, enum: ["shop"], default: "shop" },
+    role: { type: String, enum: ["shop", "admin"], default: "shop" },
     passwordHash: { type: String, default: null, select: false },
   },
   { timestamps: true }
@@ -50,6 +50,11 @@ const ConvertyConnectionSchema = new Schema(
     webhookSecret: { type: String, required: true },
     webhookSecretHash: { type: String, required: true, unique: true, index: true },
     lastSyncAt: { type: Date, default: null },
+    lastSyncStartedAt: { type: Date, default: null },
+    lastSyncError: { type: String, default: null },
+    lastSyncOrderCount: { type: Number, default: 0 },
+    lastWebhookAt: { type: Date, default: null },
+    lastWebhookError: { type: String, default: null },
     connectedAt: { type: Date, default: Date.now },
   },
   { timestamps: true }
@@ -67,6 +72,12 @@ const CustomerSchema = new Schema(
     tags: { type: [String], default: [] },
     lastDeliveredAt: { type: Date, default: null },
     source: { type: Schema.Types.Mixed, default: { type: "direct" } },
+    marketingConsent: {
+      whatsapp: { type: Boolean, default: false },
+      sms: { type: Boolean, default: false },
+      email: { type: Boolean, default: false },
+    },
+    lastMessagedAt: { type: Date, default: null },
   },
   { timestamps: true }
 );
@@ -85,6 +96,8 @@ const OrderSchema = new Schema(
     raw: { type: Schema.Types.Mixed, default: null },
     placedAt: { type: Date, required: true },
     deliveredAt: { type: Date, default: null },
+    sourceUpdatedAt: { type: Date, default: null },
+    attributedCampaign: { type: Schema.Types.ObjectId, ref: "StudioCampaign", default: null, index: true },
   },
   { timestamps: true }
 );
@@ -105,10 +118,32 @@ const CampaignSchema = new Schema(
     channels: { type: [String], default: [] },
     segmentKey: { type: String, default: null },
     incentiveType: { type: String, default: null },
+    message: { type: String, default: null },
+    scheduledAt: { type: Date, default: null },
+    attributionDays: { type: Number, default: 14 },
+    audienceCount: { type: Number, default: 0 },
+    eligibleCount: { type: Number, default: 0 },
   },
   { timestamps: true }
 );
 CampaignSchema.index({ user: 1, slug: 1 }, { unique: true });
+
+const CampaignRecipientSchema = new Schema(
+  {
+    user: { type: Schema.Types.ObjectId, ref: "StudioUser", required: true, index: true },
+    campaign: { type: Schema.Types.ObjectId, ref: "StudioCampaign", required: true, index: true },
+    customer: { type: Schema.Types.ObjectId, ref: "StudioCustomer", required: true, index: true },
+    channel: { type: String, enum: ["whatsapp", "sms", "email"], required: true },
+    destination: { type: String, required: true },
+    status: { type: String, enum: ["queued", "excluded_consent", "excluded_frequency", "sent", "delivered", "failed"], required: true },
+    providerMessageId: { type: String, default: null },
+    sentAt: { type: Date, default: null },
+    deliveredAt: { type: Date, default: null },
+    failureReason: { type: String, default: null },
+  },
+  { timestamps: true }
+);
+CampaignRecipientSchema.index({ campaign: 1, customer: 1, channel: 1 }, { unique: true });
 
 const InfluencerSchema = new Schema(
   {
@@ -134,6 +169,29 @@ const ConfigSchema = new Schema(
 );
 ConfigSchema.index({ user: 1, key: 1 }, { unique: true });
 
+const SubscriptionSchema = new Schema(
+  {
+    user: { type: Schema.Types.ObjectId, ref: "StudioUser", required: true, unique: true, index: true },
+    plan: { type: String, enum: ["fidely"], default: "fidely" },
+    status: { type: String, enum: ["trialing", "active", "past_due", "cancelled"], default: "trialing" },
+    trialEndsAt: { type: Date, required: true },
+    currentPeriodEndsAt: { type: Date, default: null },
+    providerCustomerId: { type: String, default: null },
+    providerSubscriptionId: { type: String, default: null },
+  },
+  { timestamps: true }
+);
+
+const AuditLogSchema = new Schema(
+  {
+    actor: { type: Schema.Types.ObjectId, ref: "StudioUser", required: true, index: true },
+    action: { type: String, required: true },
+    targetUser: { type: Schema.Types.ObjectId, ref: "StudioUser", default: null, index: true },
+    details: { type: Schema.Types.Mixed, default: null },
+  },
+  { timestamps: true }
+);
+
 export const StudioUser =
   mongoose.models.StudioUser || mongoose.model("StudioUser", UserSchema);
 export const StudioSession =
@@ -153,3 +211,9 @@ export const StudioInfluencer =
   mongoose.models.StudioInfluencer || mongoose.model("StudioInfluencer", InfluencerSchema);
 export const StudioConfig =
   mongoose.models.StudioConfig || mongoose.model("StudioConfig", ConfigSchema);
+export const StudioSubscription =
+  mongoose.models.StudioSubscription || mongoose.model("StudioSubscription", SubscriptionSchema);
+export const StudioCampaignRecipient =
+  mongoose.models.StudioCampaignRecipient || mongoose.model("StudioCampaignRecipient", CampaignRecipientSchema);
+export const StudioAuditLog =
+  mongoose.models.StudioAuditLog || mongoose.model("StudioAuditLog", AuditLogSchema);

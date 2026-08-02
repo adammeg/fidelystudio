@@ -4,11 +4,15 @@ import ConvertySyncCrumb from "@/components/studio/ConvertySyncCrumb";
 import { getCustomers, getSegments, getCohorts } from "@/lib/studio";
 import { fmt, initials, avatarColor, timeAgo } from "@/lib/format";
 
-export default async function CustomersPage({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
+export default async function CustomersPage({ searchParams }: { searchParams: Promise<{ q?: string; segment?: string; source?: string; from?: string; to?: string }> }) {
   const sp = await searchParams;
   const qs = new URLSearchParams({ limit: "100" });
   if (sp.q) qs.set("q", sp.q);
-  const [{ customers }, segments, cohorts] = await Promise.all([
+  if (sp.segment) qs.set("segment", sp.segment);
+  if (sp.source) qs.set("source", sp.source);
+  if (sp.from) qs.set("from", sp.from);
+  if (sp.to) qs.set("to", sp.to);
+  const [{ customers, currency }, segments, cohorts] = await Promise.all([
     getCustomers(`?${qs}`), getSegments(), getCohorts(),
   ]);
   const total = cohorts.bySource.reduce((sum, row) => sum + row.customers, 0);
@@ -33,8 +37,8 @@ export default async function CustomersPage({ searchParams }: { searchParams: Pr
           {[
             ["Total customers", fmt(total), "Identified by phone"],
             ["Repeat customers", fmt(returning), "Two or more delivered orders"],
-            ["Delivered revenue", `${fmt(revenue)} TND`, "Across customer cohorts"],
-            ["At risk", fmt(segments.counts.atRisk), "No delivery in 60 days"],
+            ["Delivered revenue", `${fmt(revenue)} ${currency}`, "Across customer cohorts"],
+            ["At risk", fmt(segments.counts.atRisk), "Last delivery 60–89 days ago"],
           ].map(([label, value, note], i) => (
             <article key={label} className={`kpi${i === 0 ? " feature" : ""}`}>
               <div className="k-label">{label}</div><div className="k-val">{value}</div><div className="k-foot">{note}</div>
@@ -44,8 +48,17 @@ export default async function CustomersPage({ searchParams }: { searchParams: Pr
         <section className="block">
           <div className="filter-bar">
             <form className="search" action="/customers">
+              {sp.segment && <input type="hidden" name="segment" value={sp.segment} />}
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="11" cy="11" r="7" /><path d="M21 21l-4-4" /></svg>
               <input name="q" defaultValue={sp.q || ""} placeholder="Search name or phone" />
+              <select name="source" defaultValue={sp.source || ""} aria-label="Acquisition source">
+                <option value="">All sources</option><option value="direct">Direct</option><option value="influencer">Influencer</option>
+                <option value="referral">Referral</option><option value="campaign">Campaign</option><option value="ads">Ads</option>
+              </select>
+              <input type="date" name="from" defaultValue={sp.from || ""} aria-label="Delivered from" />
+              <input type="date" name="to" defaultValue={sp.to || ""} aria-label="Delivered to" />
+              <button className="btn btn-secondary" type="submit">Apply</button>
+              <a className="btn btn-secondary" href={`/api/studio/customers/export?${qs}`}>Export CSV</a>
             </form>
           </div>
           <div className="panel">
@@ -57,7 +70,7 @@ export default async function CustomersPage({ searchParams }: { searchParams: Pr
                     <td><div className="who-cell"><span className="av" style={{ background: avatarColor(customer.id) }}>{initials(customer.name)}</span><span className="h">{customer.name}</span></div></td>
                     <td className="muted">{customer.phone}</td>
                     <td className="num">{customer.placed}</td><td className="num positive">{customer.delivered}</td>
-                    <td className="num">{customer.refused}</td><td className="num">{fmt(customer.spent)} TND</td>
+                    <td className="num">{customer.refused}</td><td className="num">{fmt(customer.spent)} {currency}</td>
                     <td className="muted">{timeAgo(customer.lastDeliveredAt)}</td>
                     <td><Link href={`/customers/${customer.id}`} className="btn btn-ghost btn-sm">View</Link></td>
                   </tr>

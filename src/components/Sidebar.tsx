@@ -49,6 +49,11 @@ const mainNav: NavEntry[] = [
       </svg>
     ),
   },
+  {
+    label: "Campaigns",
+    href: "/campaigns",
+    icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 13l13-9-3 17-4-5-6-3z" /></svg>,
+  },
 ];
 
 const settingsNav: NavEntry = {

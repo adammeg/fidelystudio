@@ -21,6 +21,11 @@ async function userId() {
   return user ? String(user._id) : null;
 }
 
+function csvCell(value: unknown) {
+  const text = value == null ? "" : String(value);
+  return `"${text.replaceAll('"', '""')}"`;
+}
+
 export async function GET(req: NextRequest, context: Context) {
   try {
     const user = await userId();
@@ -29,6 +34,35 @@ export async function GET(req: NextRequest, context: Context) {
     const endpoint = path.join("/");
     if (endpoint === "converty/connect-url") {
       return NextResponse.json({ url: "/api/auth/converty/start" });
+    }
+    if (endpoint === "customers/export") {
+      const data = await studioGet(user, "customers", req.nextUrl.searchParams) as {
+        customers: Array<Record<string, unknown>>;
+        currency: string;
+      };
+      const headers = ["Name", "Phone", "Email", "Source", "Placed", "Delivered", "Refused", `Revenue (${data.currency})`, "Points", "Tier", "First delivered", "Last delivered"];
+      const rows = data.customers.map((customer) => [
+        customer.name, customer.phone, customer.email,
+        (customer.source as { type?: string } | undefined)?.type || "direct",
+        customer.placed, customer.delivered, customer.refused, customer.spent,
+        customer.points, customer.tier, customer.firstDeliveredAt, customer.lastDeliveredAt,
+      ]);
+      const csv = [headers, ...rows].map((row) => row.map(csvCell).join(",")).join("\r\n");
+      return new NextResponse(`\uFEFF${csv}`, {
+        headers: {
+          "Content-Type": "text/csv; charset=utf-8",
+          "Content-Disposition": `attachment; filename="fidely-customers-${new Date().toISOString().slice(0, 10)}.csv"`,
+        },
+      });
+    }
+    if (endpoint === "account/export") {
+      const data = await studioGet(user, endpoint, req.nextUrl.searchParams);
+      return new NextResponse(JSON.stringify(data, null, 2), {
+        headers: {
+          "Content-Type": "application/json; charset=utf-8",
+          "Content-Disposition": `attachment; filename="fidely-account-${new Date().toISOString().slice(0, 10)}.json"`,
+        },
+      });
     }
     return NextResponse.json(await studioGet(user, endpoint, req.nextUrl.searchParams));
   } catch (error) {
@@ -42,7 +76,10 @@ async function mutation(req: NextRequest, context: Context, method: string) {
     if (!user) return NextResponse.json({ message: "Not authenticated" }, { status: 401 });
     const { path } = await context.params;
     const body = await req.json().catch(() => ({}));
-    return NextResponse.json(await studioMutate(user, path.join("/"), method, body));
+    const endpoint = path.join("/");
+    const response = NextResponse.json(await studioMutate(user, endpoint, method, body));
+    if (endpoint === "account" && method === "DELETE") response.cookies.delete("fidely_session");
+    return response;
   } catch (error) {
     return errorResponse(error);
   }
