@@ -216,6 +216,7 @@ export async function studioGet(userId: string, path: string, search = new URLSe
       lastWebhookError: connection?.lastWebhookError || null,
       connectedAt: connection?.connectedAt || null,
       webhooksActive: connection?.webhookIds?.length === 2,
+      webhookScopesGranted: ["read-hooks", "create-hooks", "delete-hooks"].every((scope) => connection?.scopes?.includes(scope)),
       health: !connection
         ? "disconnected"
         : connection.lastSyncError || connection.lastWebhookError || connection.webhookIds?.length !== 2

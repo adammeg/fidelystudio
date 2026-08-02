@@ -313,6 +313,12 @@ export default function ConvertyManager({ initial, callbackStatus, callbackMessa
             <span>Webhooks</span>
             <b>{status.webhooksActive ? "Active" : "Inactive"}</b>
           </div>
+          {!status.webhookScopesGranted && (
+            <div className="stat-row">
+              <span>Webhook permissions</span>
+              <b style={{ color: "#C2603C" }}>Reconnect required</b>
+            </div>
+          )}
           {(status.lastSyncError || status.lastWebhookError) && (
             <div className="stat-row">
               <span>Latest error</span>
@@ -354,7 +360,11 @@ export default function ConvertyManager({ initial, callbackStatus, callbackMessa
 
             </button>
 
-            {!status.webhooksActive && (
+            {!status.webhookScopesGranted ? (
+              <button className="btn btn-primary" onClick={connect} disabled={busy !== null}>
+                {busy === "connect" ? "Redirecting…" : "Reconnect with webhook access"}
+              </button>
+            ) : !status.webhooksActive && (
 
               <button className="btn btn-secondary" onClick={repairWebhooks} disabled={busy !== null}>
 

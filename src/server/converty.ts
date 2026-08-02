@@ -23,11 +23,11 @@ const ALLOWED_SCOPES = new Set<string>([
 
 export function convertyScopes() {
   const configured = process.env.CONVERTY_SCOPES?.trim();
-  if (!configured) return [...CONVERTY_BASE_SCOPES];
+  if (!configured) return [...CONVERTY_BASE_SCOPES, ...CONVERTY_WEBHOOK_SCOPES];
   const scopes = [...new Set(configured.split(/[\s,]+/).filter(Boolean))];
   const invalid = scopes.filter((scope) => !ALLOWED_SCOPES.has(scope));
   if (invalid.length) throw new Error(`Unsupported Converty scope: ${invalid.join(", ")}`);
-  for (const required of CONVERTY_BASE_SCOPES) {
+  for (const required of [...CONVERTY_BASE_SCOPES, ...CONVERTY_WEBHOOK_SCOPES]) {
     if (!scopes.includes(required)) {
       throw new Error(`CONVERTY_SCOPES must include ${required}`);
     }

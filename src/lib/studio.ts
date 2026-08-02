@@ -98,6 +98,7 @@ export interface ConvertyStatus {
   lastWebhookError: string | null;
   connectedAt: string | null;
   webhooksActive?: boolean;
+  webhookScopesGranted: boolean;
   health: "healthy" | "attention" | "stale" | "disconnected";
 }
 

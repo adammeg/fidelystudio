@@ -21,21 +21,27 @@ export async function POST(req: NextRequest) {
 
   try {
     await connectDatabase();
-    let user = await StudioUser.findOne({ email }).select("+passwordHash");
+    const candidates = await StudioUser.find({ email }).select("+passwordHash");
+    let user = null;
+    for (const candidate of candidates) {
+      if (candidate.passwordHash && await verifyPassword(password, candidate.passwordHash)) {
+        user = candidate;
+        break;
+      }
+    }
 
     const defaultEmail = process.env.DEFAULT_USER_EMAIL?.trim().toLowerCase();
     const defaultPassword = process.env.DEFAULT_USER_PASSWORD;
     const adminEmail = process.env.ADMIN_EMAIL?.trim().toLowerCase();
     const adminPassword = process.env.ADMIN_PASSWORD;
     if (!user && email === adminEmail && password === adminPassword) {
-      user = await StudioUser.create({
-        convertyStoreId: "local:admin",
-        email,
-        shopName: "Fidely Administration",
-        ownerName: "Administrator",
-        role: "admin",
-        passwordHash: await hashPassword(password),
-      });
+      user = await StudioUser.findOneAndUpdate(
+        { convertyStoreId: "local:admin" },
+        {
+          $set: { email, shopName: "Fidely Administration", ownerName: "Administrator", role: "admin", passwordHash: await hashPassword(password) },
+        },
+        { new: true, upsert: true, setDefaultsOnInsert: true }
+      ).select("+passwordHash");
     }
     if (!user && email === defaultEmail && password === defaultPassword) {
       user = await StudioUser.create({

@@ -34,6 +34,9 @@ describe("Converty OAuth contract", () => {
     expect(url.searchParams.get("scope")?.split(" ")).toEqual([
       "read-stores",
       "read-orders",
+      "read-hooks",
+      "create-hooks",
+      "delete-hooks",
     ]);
   });
 
@@ -73,11 +76,16 @@ describe("Converty OAuth contract", () => {
     );
   });
 
-  it("allows webhook scopes only when explicitly configured", () => {
+  it("requires webhook scopes when explicitly configured", () => {
     process.env.CONVERTY_SCOPES =
       "read-stores read-orders read-hooks create-hooks delete-hooks";
     const url = new URL(authorizationUrl("csrf-state"));
     expect(url.searchParams.get("scope")?.split(" ")).toContain("create-hooks");
+  });
+
+  it("rejects configured scopes that omit webhook access", () => {
+    process.env.CONVERTY_SCOPES = "read-stores read-orders";
+    expect(() => authorizationUrl("csrf-state")).toThrow("must include read-hooks");
   });
 
   it("uses the separate protected API origin for store data", async () => {
