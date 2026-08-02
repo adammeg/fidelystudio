@@ -3,6 +3,7 @@ import LoyaltyManager from "@/components/studio/LoyaltyManager";
 import ConvertySyncCrumb from "@/components/studio/ConvertySyncCrumb";
 import { getLoyalty, getLoyaltyCustomers, getConvertyStatus } from "@/lib/studio";
 import { fmt, initials, avatarColor, tierChip, timeAgo, syncAgo } from "@/lib/format";
+import RewardRedeemer from "@/components/studio/RewardRedeemer";
 
 const Check = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
@@ -92,7 +93,7 @@ export default async function LoyaltyProgramPage() {
                     )}
                   </span>
                   <span className="snm">{s.name}</span>
-                  <span className="sreq">{s.threshold === 0 ? "Default status" : `${s.threshold} delivered orders`}</span>
+                  <span className="sreq">{s.threshold === 0 ? "Default status" : `${s.threshold} points`}</span>
                   <span className="sben">
                     <small>Benefit</small>
                     {s.perk || "—"}
@@ -168,6 +169,8 @@ export default async function LoyaltyProgramPage() {
                 <th>Status</th>
                 <th>Last delivered order</th>
                 <th className="num">Delivered</th>
+                <th>Points activity</th>
+                <th>Reward</th>
                 <th></th>
               </tr>
             </thead>
@@ -194,6 +197,8 @@ export default async function LoyaltyProgramPage() {
                     </td>
                     <td className="muted">{timeAgo(c.lastDeliveredAt)}</td>
                     <td className="num">{c.delivered}</td>
+                    <td className="muted">+{fmt(c.loyalty.earned)} earned · {fmt(c.loyalty.redeemed)} used</td>
+                    <td><RewardRedeemer customerId={c.id} points={c.points} rewards={program.rewards} /></td>
                     <td>
                       <Link href={`/customers/${c.id}`} className="btn btn-ghost btn-sm">
                         View

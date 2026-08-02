@@ -1,6 +1,8 @@
 import { convertyApi, studioAppUrl } from "./converty";
 import { StudioCampaignRecipient, StudioConvertyConnection, StudioCustomer, StudioOrder } from "./models";
 import { decryptSecret } from "./security";
+import { reconcileOrderRewards } from "./loyalty";
+import { sendDeliveryPointsUpdate } from "./evolution";
 
 export type ConvertyOrder = {
   _id: string;
@@ -62,7 +64,7 @@ async function withRetries<T>(operation: () => Promise<T>, attempts = 3) {
   throw lastError;
 }
 
-export async function syncOrder(userId: string, order: ConvertyOrder) {
+export async function syncOrder(userId: string, order: ConvertyOrder, notifyCustomer = false) {
   if (!order._id || !order.customer?.phone) return false;
   const incomingUpdatedAt = sourceUpdatedAt(order);
   const existing = await StudioOrder.findOne({ user: userId, convertyOrderId: String(order._id) })
@@ -118,6 +120,13 @@ export async function syncOrder(userId: string, order: ConvertyOrder) {
     },
     { upsert: !existing, new: true, setDefaultsOnInsert: true }
   );
+  if (updated) {
+    const reward = await reconcileOrderRewards(userId, String(updated._id));
+    if (notifyCustomer && reward.credited > 0) {
+      try { await sendDeliveryPointsUpdate(userId, String(customer._id), reward.credited); }
+      catch { /* Loyalty accounting must succeed even when WhatsApp is temporarily unavailable. */ }
+    }
+  }
   return Boolean(updated);
 }
 

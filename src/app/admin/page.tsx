@@ -11,18 +11,18 @@ export default async function AdminPage() {
   if (user.role !== "admin") redirect("/studio");
   const data = await adminDashboard(String(user._id));
   return <div className="admin-shell">
-    <header className="topbar"><div><div className="crumb">Fidely administration</div><h1>Merchant dashboard</h1><div className="subt">Manage stores and the single 50 DT/month subscription.</div></div>
+    <header className="topbar"><div><div className="crumb">Fidely administration</div><h1>Merchant dashboard</h1><div className="subt">Manage stores, 7-day trials, and the single 49 DT/month subscription.</div></div>
       <form action="/api/logout" method="post"><button className="btn btn-secondary">Sign out</button></form>
     </header>
     <main className="content">
       <section className="kpi-row">{[
         ["Merchants", data.totals.merchants], ["Active subscriptions", data.totals.active],
-        ["Trials", data.totals.trialing], ["Connected stores", data.totals.connected],
+        ["Free trials", data.totals.trialing], ["Pending payment", data.totals.pending], ["Connected stores", data.totals.connected],
       ].map(([label, value]) => <article className="kpi" key={label}><div className="k-label">{label}</div><div className="k-val">{value}</div></article>)}</section>
       <section className="panel block"><div className="p-head"><div><h3>All merchants</h3><div className="sub">Subscription, connection, and usage overview.</div></div></div>
         {data.merchants.length ? <div className="table-scroll"><table className="dense"><thead><tr><th>Merchant</th><th>Subscription</th><th>Store health</th><th className="num">Customers</th><th className="num">Orders</th><th className="num">Campaigns</th><th>Action</th></tr></thead>
           <tbody>{data.merchants.map((merchant) => <tr key={merchant.id}><td><b>{merchant.shopName}</b><div className="muted">{merchant.email}</div></td>
-            <td><b>{merchant.subscription?.status || "Not created"}</b><div className="muted">{merchant.subscription?.currentPeriodEndsAt ? `Until ${new Date(merchant.subscription.currentPeriodEndsAt).toLocaleDateString()}` : "50 DT / month"}</div></td>
+            <td><b>{merchant.subscription?.status || "Not created"}</b><div className="muted">{merchant.subscription?.currentPeriodEndsAt ? `Until ${new Date(merchant.subscription.currentPeriodEndsAt).toLocaleDateString()}` : "49 DT / month"}</div></td>
             <td>{merchant.store ? <span className={merchant.store.healthy ? "positive" : "muted"}>{merchant.store.healthy ? "Healthy" : "Needs attention"}</span> : "Not connected"}</td>
             <td className="num">{merchant.customers}</td><td className="num">{merchant.orders}</td><td className="num">{merchant.campaigns}</td>
             <td><SubscriptionButton merchantId={merchant.id} active={merchant.subscription?.status === "active"} /></td></tr>)}</tbody></table></div>

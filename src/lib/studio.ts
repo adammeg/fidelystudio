@@ -55,6 +55,10 @@ export interface ApiCampaign {
   audienceCount: number;
   eligibleCount: number;
   message: string | null;
+  createdAt: string | null;
+  updatedAt: string | null;
+  channels: string[];
+  segmentKey: string | null;
   influencers: { id: string; handle: string; initial: string; avatarBg: string }[];
   placed: number;
   delivered: number;
@@ -157,6 +161,7 @@ export interface CustomerDetail {
     deliveredAt: string | null;
   }[];
   referrals: { id: string; code: string; status: string; referred: { name?: string; phone?: string }; createdAt: string }[];
+  loyaltyTransactions: { id: string; type: string; points: number; description: string; rewardName: string | null; createdAt: string }[];
 }
 
 export interface ReferralProgram {
@@ -184,7 +189,7 @@ export interface LoyaltyProgram {
 
 export interface LoyaltyData {
   program: LoyaltyProgram;
-  stats: { members: number; pointsOutstanding: number };
+  stats: { members: number; pointsOutstanding: number; redemptions: number; transactions: number };
 }
 
 export interface WidgetConfig {
@@ -210,7 +215,7 @@ export interface AccountData {
   profile: { email: string; shopName: string; ownerName: string; currency: string };
   subscription: {
     plan: "fidely";
-    price: { amount: 50; currency: "TND"; interval: "month" };
+    price: { amount: 49; currency: "TND"; interval: "month" };
     status: "active" | "trialing" | "restricted";
     rawStatus: string;
     trialEndsAt: string;
@@ -240,5 +245,6 @@ export const getCustomer = (id: string) => get<CustomerDetail>(`/studio/customer
 export const getSegments = () => get<ApiSegments>("/studio/segments");
 export const getCohorts = (qs = "") => get<CohortsData>(`/studio/cohorts${qs}`);
 export const getLoyalty = () => get<LoyaltyData>("/studio/loyalty");
-export const getLoyaltyCustomers = () => get<{ customers: ApiCustomer[] }>("/studio/loyalty/customers");
+export type LoyaltyCustomer = ApiCustomer & { loyalty: { earned: number; redeemed: number; lastActivityAt: string | null } };
+export const getLoyaltyCustomers = () => get<{ customers: LoyaltyCustomer[] }>("/studio/loyalty/customers");
 export const getWidgets = () => get<{ config: WidgetConfig }>("/studio/widgets");

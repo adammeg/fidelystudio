@@ -51,6 +51,7 @@ export async function adminDashboard(userId: string) {
       merchants: merchants.length,
       active: merchants.filter((merchant) => merchant.subscription?.status === "active").length,
       trialing: merchants.filter((merchant) => merchant.subscription?.status === "trialing").length,
+      pending: merchants.filter((merchant) => merchant.subscription?.status === "restricted").length,
       connected: merchants.filter((merchant) => merchant.store).length,
     },
     merchants,

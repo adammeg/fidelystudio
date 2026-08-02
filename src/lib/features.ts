@@ -7,7 +7,7 @@ export const PRODUCT_FEATURES = {
   campaigns: true,
   influencers: false,
   referrals: false,
-  loyalty: false,
+  loyalty: true,
   widgets: false,
   whatsappCampaigns: false,
 } as const;
@@ -15,7 +15,6 @@ export const PRODUCT_FEATURES = {
 export const UNSUPPORTED_STUDIO_API_PREFIXES = [
   "influencers",
   "referral",
-  "loyalty",
   "widgets",
 ] as const;
 

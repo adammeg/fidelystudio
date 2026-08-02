@@ -1,4 +1,4 @@
-export const FIDELY_MONTHLY_PRICE = { amount: 50, currency: "TND", interval: "month" } as const;
+export const FIDELY_MONTHLY_PRICE = { amount: 49, currency: "TND", interval: "month" } as const;
 
 export const FIDELY_ENTITLEMENTS = {
   customerLimit: Number.MAX_SAFE_INTEGER,

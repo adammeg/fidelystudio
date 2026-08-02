@@ -7,6 +7,8 @@ import {
   StudioConvertyConnection,
   StudioCustomer,
   StudioInfluencer,
+  StudioLoyaltyTransaction,
+  StudioRewardRedemption,
   StudioOrder,
   StudioSubscription,
   StudioUser,
@@ -28,7 +30,7 @@ const referralDefaults = {
     "I love {store}! Use my code {code} to get {friendReward} off your first order: {link}",
 };
 
-const loyaltyDefaults = {
+export const loyaltyDefaults = {
   enabled: true,
   earnRules: [
     { name: "Delivered order", icon: "cart", points: 10, perAmount: 100, note: "Every delivered order", active: true },
@@ -150,6 +152,10 @@ type CampaignRecord = {
   audienceCount?: number;
   eligibleCount?: number;
   message?: string | null;
+  createdAt?: Date | string;
+  updatedAt?: Date | string;
+  channels?: string[];
+  segmentKey?: string | null;
 };
 
 function campaignJson(campaign: CampaignRecord) {
@@ -167,6 +173,10 @@ function campaignJson(campaign: CampaignRecord) {
     audienceCount: campaign.audienceCount || 0,
     eligibleCount: campaign.eligibleCount || 0,
     message: campaign.message || null,
+    createdAt: campaign.createdAt || null,
+    updatedAt: campaign.updatedAt || null,
+    channels: campaign.channels || ["whatsapp"],
+    segmentKey: campaign.segmentKey || null,
     influencers: [],
     placed: 0,
     delivered: 0,
@@ -286,7 +296,12 @@ export async function studioGet(userId: string, path: string, search = new URLSe
         rows = rows.filter((row) => isInSegment(row, segment, classification.storeAvgBasket));
       }
     }
-    if (clean === "loyalty/customers") rows = rows.filter((row) => row.points > 0);
+    if (clean === "loyalty/customers") {
+      rows = rows.filter((row) => row.points > 0);
+      const activity = await StudioLoyaltyTransaction.aggregate([{ $match: { user: new mongoose.Types.ObjectId(userId) } }, { $group: { _id: "$customer", earned: { $sum: { $cond: [{ $gt: ["$points", 0] }, "$points", 0] } }, redeemed: { $sum: { $cond: [{ $lt: ["$points", 0] }, { $abs: "$points" }, 0] } }, lastActivityAt: { $max: "$createdAt" } } }]);
+      const byCustomer = new Map(activity.map((item) => [String(item._id), item]));
+      rows = rows.map((row) => ({ ...row, loyalty: byCustomer.get(row.id) || { earned: 0, redeemed: 0, lastActivityAt: null } }));
+    }
     const connection = await StudioConvertyConnection.findOne({ user: userId }).select("currency").lean();
     return { customers: rows, total: rows.length, currency: connection?.currency || "TND" };
   }
@@ -296,7 +311,10 @@ export async function studioGet(userId: string, path: string, search = new URLSe
     if (!mongoose.isValidObjectId(customerId)) throw Object.assign(new Error("Customer not found"), { status: 404 });
     const customer = (await customerRows(userId)).find((row) => row.id === customerId);
     if (!customer) throw Object.assign(new Error("Customer not found"), { status: 404 });
-    const orders = await StudioOrder.find({ user: userId, customer: customerId }).sort({ placedAt: -1 }).lean();
+    const [orders, loyaltyTransactions] = await Promise.all([
+      StudioOrder.find({ user: userId, customer: customerId }).sort({ placedAt: -1 }).lean(),
+      StudioLoyaltyTransaction.find({ user: userId, customer: customerId }).sort({ createdAt: -1 }).limit(100).lean(),
+    ]);
     return {
       customer: {
         ...customer,
@@ -322,6 +340,7 @@ export async function studioGet(userId: string, path: string, search = new URLSe
         deliveredAt: order.deliveredAt,
       })),
       referrals: [],
+      loyaltyTransactions: loyaltyTransactions.map((transaction) => ({ id: id(transaction._id), type: transaction.type, points: transaction.points, description: transaction.description, rewardName: transaction.rewardName || null, createdAt: transaction.createdAt })),
     };
   }
 
@@ -368,7 +387,8 @@ export async function studioGet(userId: string, path: string, search = new URLSe
   if (clean === "referral") return { program: await config(userId, "referral", referralDefaults), stats: { totalReferrals: 0, rewarded: 0, pending: 0, revenue: 0, deliveredOrders: 0, conversionPct: 0 } };
   if (clean === "loyalty") {
     const customers = await customerRows(userId);
-    return { program: await config(userId, "loyalty", loyaltyDefaults), stats: { members: customers.filter((c) => c.points > 0).length, pointsOutstanding: customers.reduce((sum, c) => sum + c.points, 0) } };
+    const [program, redemptionCount, transactionCount] = await Promise.all([config(userId, "loyalty", loyaltyDefaults), StudioRewardRedemption.countDocuments({ user: userId }), StudioLoyaltyTransaction.countDocuments({ user: userId })]);
+    return { program, stats: { members: customers.filter((c) => c.points > 0).length, pointsOutstanding: customers.reduce((sum, c) => sum + c.points, 0), redemptions: redemptionCount, transactions: transactionCount } };
   }
   if (clean === "widgets") return { config: await config(userId, "widgets", widgetDefaults) };
 

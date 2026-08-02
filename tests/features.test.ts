@@ -12,13 +12,12 @@ describe("supported product surface", () => {
   it.each([
     "influencers",
     "referral",
-    "loyalty",
     "widgets",
   ])("rejects hidden Studio API %s", (path) => {
     expect(isUnsupportedStudioApi(path)).toBe(true);
   });
 
-  it.each(["overview", "customers", "segments", "cohorts", "campaigns", "campaigns/example", "converty/status"])(
+  it.each(["overview", "customers", "segments", "cohorts", "campaigns", "campaigns/example", "converty/status", "loyalty", "loyalty/customers"])(
     "keeps supported Studio API %s available",
     (path) => {
       expect(isUnsupportedStudioApi(path)).toBe(false);

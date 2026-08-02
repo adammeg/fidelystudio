@@ -92,7 +92,7 @@ export async function GET(req: NextRequest) {
     );
 
     const session = await createSession(String(user._id));
-    const destination = appUrl("/settings?converty=connected");
+    const destination = appUrl("/settings?converty=connected&trial=started");
     const setupMessages: string[] = [];
     try {
       await syncOrdersForUser(String(user._id));

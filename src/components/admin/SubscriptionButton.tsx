@@ -18,6 +18,6 @@ export default function SubscriptionButton({ merchantId, active }: { merchantId:
     router.refresh();
   }
   return <div><button className={`btn ${active ? "btn-secondary" : "btn-primary"}`} onClick={update} disabled={busy}>
-    {busy ? "Updating…" : active ? "Deactivate" : "Activate · 50 DT/month"}
+    {busy ? "Updating…" : active ? "Deactivate" : "Activate · 49 DT/month"}
   </button>{error && <div style={{ color: "#C2603C", fontSize: 12, marginTop: 4 }}>{error}</div>}</div>;
 }

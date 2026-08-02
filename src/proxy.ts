@@ -5,7 +5,7 @@ const SESSION_COOKIE = "fidely_session";
 
 // Routes that never require auth.
 const PUBLIC_PATHS = ["/", "/login"];
-const HIDDEN_FEATURE_PATHS = ["/influence", "/loyalty", "/widgets"];
+const HIDDEN_FEATURE_PATHS = ["/influence", "/widgets"];
 
 export function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;

@@ -51,6 +51,15 @@ export default function LoyaltyManager({ program }: { program: LoyaltyProgram })
   function toggleReward(i: number) {
     setRewards((rs) => rs.map((r, idx) => (idx === i ? { ...r, active: !r.active } : r)));
   }
+  function updateRule(i: number, patch: Partial<LoyaltyProgram["earnRules"][number]>) {
+    setEarnRules((rules) => rules.map((rule, index) => index === i ? { ...rule, ...patch } : rule));
+  }
+  function updateReward(i: number, patch: Partial<LoyaltyProgram["rewards"][number]>) {
+    setRewards((items) => items.map((reward, index) => index === i ? { ...reward, ...patch } : reward));
+  }
+  function addReward() {
+    setRewards((items) => [...items, { name: "New gift", icon: "gift", cost: 100, note: "", active: true, redeemed: 0 }]);
+  }
 
   async function save() {
     setSaving(true);
@@ -108,12 +117,13 @@ export default function LoyaltyManager({ program }: { program: LoyaltyProgram })
                 <td>
                   <div className="rule-nm">
                     <span className="rule-ic">{ruleIcon(r.icon)}</span>
-                    <span className="nm">{r.name}</span>
+                    <input className="input" aria-label="Rule name" value={r.name} onChange={(event) => updateRule(i, { name: event.target.value })} style={{ maxWidth: 180 }} />
                   </div>
                 </td>
                 <td className="muted">{r.note || "—"}</td>
                 <td>
-                  <span className="rwd-badge">{ruleReward(r)}</span>
+                  <input className="input" type="number" min={0} aria-label="Points earned" value={r.points} onChange={(event) => updateRule(i, { points: Number(event.target.value) })} style={{ width: 90 }} />
+                  <small className="muted">{ruleReward(r)}</small>
                 </td>
                 <td>
                   <span className="val-chip">
@@ -143,6 +153,7 @@ export default function LoyaltyManager({ program }: { program: LoyaltyProgram })
             <h3>What points unlock</h3>
             <div className="sub">Rewards customers redeem with their points</div>
           </div>
+          <button className="btn btn-secondary btn-sm" onClick={addReward}>Add gift</button>
         </div>
         <table>
           <thead>
@@ -159,12 +170,12 @@ export default function LoyaltyManager({ program }: { program: LoyaltyProgram })
               <tr key={`${r.name}-${i}`} className={r.active ? undefined : "row-inactive"}>
                 <td>
                   <span className="pts-cell">
-                    <span className="n">{r.cost}</span>
+                    <input className="input" type="number" min={1} aria-label="Reward points cost" value={r.cost} onChange={(event) => updateReward(i, { cost: Number(event.target.value) })} style={{ width: 90 }} />
                     <span className="u">pts</span>
                   </span>
                 </td>
-                <td style={{ fontWeight: 700 }}>{r.name}</td>
-                <td className="muted">{r.note || "—"}</td>
+                <td><input className="input" aria-label="Reward name" value={r.name} onChange={(event) => updateReward(i, { name: event.target.value })} /></td>
+                <td><input className="input" aria-label="Reward note" value={r.note || ""} onChange={(event) => updateReward(i, { note: event.target.value })} /></td>
                 <td className="num">{r.redeemed}</td>
                 <td>
                   <div className="status-cell" onClick={() => toggleReward(i)} style={{ cursor: "pointer" }}>

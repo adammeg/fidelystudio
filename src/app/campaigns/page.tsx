@@ -1,95 +1,45 @@
 import ConvertySyncCrumb from "@/components/studio/ConvertySyncCrumb";
 import CampaignBuilder, { type SegmentOption } from "@/components/studio/CampaignBuilder";
-import { getCampaigns, getSegments } from "@/lib/studio";
+import { getCampaigns, getSegments, type ApiCampaign } from "@/lib/studio";
 import { getSessionUser } from "@/lib/session";
 import Link from "next/link";
 
-const Check = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-    <path d="M5 13l4 4L19 7" />
-  </svg>
-);
+const stateMeta: Record<string, { label: string; cls: string }> = {
+  draft: { label: "Draft", cls: "" }, sending: { label: "Sending", cls: "live" },
+  sent: { label: "Completed", cls: "live" }, completed: { label: "Completed", cls: "live" },
+  cancelled: { label: "Cancelled", cls: "" }, scheduled: { label: "Scheduled", cls: "cod" },
+};
+function CampaignRows({ campaigns, empty }: { campaigns: ApiCampaign[]; empty: string }) {
+  if (!campaigns.length) return <div className="empty-state"><h3>{empty}</h3><p>Campaigns in this stage will appear here.</p></div>;
+  return <div>{campaigns.map((campaign) => { const meta = stateMeta[campaign.state] || { label: campaign.state, cls: "" }; return <Link className="ch-row campaign-history-link" href={`/campaigns/${campaign.slug}`} key={campaign.id}>
+    <span className="ch-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 13l13-9-3 17-4-5-6-3z" /></svg></span>
+    <span><span className="ch-nm">{campaign.name}</span><span className="ch-sub">WhatsApp · {campaign.goal} · {campaign.eligibleCount} eligible customers{campaign.createdAt ? ` · ${new Date(campaign.createdAt).toLocaleDateString("en-GB")}` : ""}</span></span>
+    <span className={`status-pill ${meta.cls}`}>{meta.label}</span><span className="campaign-open">View →</span>
+  </Link>; })}</div>;
+}
 
-export default async function CampaignBuilderPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ segment?: string; incentive?: string; goal?: string; name?: string; type?: string }>;
-}) {
-  const [seg, user, sp, existing] = await Promise.all([getSegments(), getSessionUser(), searchParams, getCampaigns()]);
-  const c = seg.counts;
-  const segments: SegmentOption[] = [
-    { key: "closeReward", name: "Close to a reward", rule: "Within reach of their next reward", count: c.closeReward },
-    { key: "atRisk", name: "At-risk customers", rule: "No delivered order in the last 60 days", count: c.atRisk },
-    { key: "dormant", name: "Dormant customers", rule: "No delivered order in 90+ days", count: c.dormant },
-    { key: "vip", name: "VIP customers", rule: "High-value repeat buyers", count: c.vip },
-    { key: "influencerAcquired", name: "Influencer-acquired", rule: "First delivered order via influencer code", count: c.influencerAcquired },
-    { key: "highBasket", name: "High basket customers", rule: "Above-average delivered order value", count: c.highBasket },
-  ];
-
-  return (
-    <>
-      <header className="topbar">
-        <div>
-          <ConvertySyncCrumb className="crumb" />
-          <h1>Create campaign</h1>
-          <div className="subt">
-            Choose an audience, offer, channel, and goal — Fidely estimates the likely cost before you launch.
-          </div>
-        </div>
-        <div className="tb-actions">
-          <Link className="btn btn-secondary" href="/">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-              <path d="M6 18L18 6M6 6l12 12" />
-            </svg>
-            Cancel
-          </Link>
-        </div>
-      </header>
-
-      <div className="content">
-        {existing.campaigns.length > 0 && <section className="panel block">
-          <div className="p-head"><div><h3>Campaign drafts</h3><div className="sub">Sending remains locked until a messaging provider is connected.</div></div></div>
-          <div className="stat-list">{existing.campaigns.map((campaign) => <div className="stat-row" key={campaign.id}>
-            <span><b>{campaign.name}</b> · {campaign.state}</span>
-            <b>{campaign.eligibleCount} eligible / {campaign.audienceCount} customers</b>
-          </div>)}</div>
-        </section>}
-        {/* STEPPER */}
-        <div className="stepper" data-screen-label="Stepper">
-          {["Who", "What", "Where", "Goal"].map((lab, i) => (
-            <div key={lab} style={{ display: "contents" }}>
-              <div className="stp done">
-                <span className="num">
-                  <Check />
-                </span>
-                <span className="lab">
-                  <span>Step {i + 1}</span>
-                  {lab}
-                </span>
-              </div>
-              <div className="stp-line filled"></div>
-            </div>
-          ))}
-          <div className="stp current">
-            <span className="num">5</span>
-            <span className="lab">
-              <span>Step 5</span>Launch check
-            </span>
-          </div>
-        </div>
-
-        <CampaignBuilder
-          segments={segments}
-          storeName={user.shopName || "Your store"}
-          initial={{
-            segment: sp.segment,
-            incentive: sp.incentive,
-            goal: sp.goal,
-            name: sp.name,
-            type: sp.type,
-          }}
-        />
-      </div>
-    </>
-  );
+export default async function CampaignsPage({ searchParams }: { searchParams: Promise<{ view?: string; segment?: string; incentive?: string; goal?: string; name?: string; type?: string }> }) {
+  const sp = await searchParams;
+  const [{ campaigns }, seg, user] = await Promise.all([getCampaigns(), getSegments(), getSessionUser()]);
+  if (sp.view === "create") {
+    const c = seg.counts;
+    const segments: SegmentOption[] = [
+      { key: "closeReward", name: "Close to a reward", rule: "Within reach of their next reward", count: c.closeReward },
+      { key: "atRisk", name: "At-risk customers", rule: "No delivered order in the last 60 days", count: c.atRisk },
+      { key: "dormant", name: "Dormant customers", rule: "No delivered order in 90+ days", count: c.dormant },
+      { key: "vip", name: "VIP customers", rule: "High-value repeat buyers", count: c.vip },
+      { key: "influencerAcquired", name: "Influencer-acquired", rule: "First delivered order via influencer code", count: c.influencerAcquired },
+      { key: "highBasket", name: "High basket customers", rule: "Above-average delivered order value", count: c.highBasket },
+    ];
+    return <><header className="topbar"><div><div className="breadcrumb"><Link href="/campaigns">Campaigns</Link><span>/</span><span className="cur">New campaign</span></div><h1>Create WhatsApp campaign</h1><div className="subt">Choose the audience and reward, then review the eligible recipients before sending.</div></div><div className="tb-actions"><Link className="btn btn-secondary" href="/campaigns">Cancel</Link></div></header><div className="content"><CampaignBuilder segments={segments} storeName={user.shopName || "Your store"} initial={sp} /></div></>;
+  }
+  const drafts = campaigns.filter((campaign) => campaign.state === "draft");
+  const active = campaigns.filter((campaign) => ["sending", "scheduled"].includes(campaign.state));
+  const history = campaigns.filter((campaign) => ["sent", "completed", "cancelled"].includes(campaign.state));
+  return <><header className="topbar"><div><ConvertySyncCrumb className="crumb" /><h1>Campaigns</h1><div className="subt">Create, resume, and review every WhatsApp campaign from one place.</div></div><div className="tb-actions"><Link className="btn btn-primary" href="/campaigns?view=create">Create campaign</Link></div></header>
+    <div className="content"><section className="kpi-row block">{[["All campaigns", campaigns.length], ["Drafts", drafts.length], ["In progress", active.length], ["Campaign history", history.length]].map(([label, value]) => <article className="kpi" key={label}><div className="k-label">{label}</div><div className="k-val">{value}</div></article>)}</section>
+      <div className="campaign-library"><section className="panel"><div className="p-head"><div><h3>Drafts</h3><div className="sub">Campaigns waiting for review or launch</div></div></div><CampaignRows campaigns={drafts} empty="No campaign drafts" /></section>
+      <section className="panel"><div className="p-head"><div><h3>In progress</h3><div className="sub">Scheduled campaigns and messages currently sending</div></div></div><CampaignRows campaigns={active} empty="No active campaigns" /></section>
+      <section className="panel campaign-history"><div className="p-head"><div><h3>Campaign history</h3><div className="sub">Completed and cancelled campaigns remain available for consultation</div></div></div><CampaignRows campaigns={history} empty="No old campaigns yet" /></section></div>
+    </div></>;
 }

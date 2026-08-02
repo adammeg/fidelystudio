@@ -8,6 +8,8 @@ import {
   StudioConvertyConnection,
   StudioCustomer,
   StudioInfluencer,
+  StudioLoyaltyTransaction,
+  StudioRewardRedemption,
   StudioOrder,
   StudioSession,
   StudioSubscription,
@@ -25,6 +27,7 @@ import { classifyCustomers, type SegmentKey } from "@/lib/customer-segments";
 import { customerRows } from "./studio-service";
 import { snapshotAudience } from "@/lib/campaign-audience";
 import { connectWhatsApp, sendCampaignBatch } from "./evolution";
+import { redeemReward } from "./loyalty";
 
 const campaignCreateSchema = z.object({
   name: z.string().trim().min(2).max(100),
@@ -52,6 +55,11 @@ const customerUpdateSchema = z.object({
   tags: z.array(z.string().trim().min(1).max(40)).max(20).optional(),
   marketingConsent: z.object({ whatsapp: z.boolean(), sms: z.boolean(), email: z.boolean() }).strict().optional(),
 }).strict();
+const loyaltySchema = z.object({
+  enabled: z.boolean().optional(),
+  earnRules: z.array(z.object({ name: z.string().trim().min(1).max(80), icon: z.string().max(30), points: z.number().int().min(0).max(100000), perAmount: z.number().min(0).max(1000000), note: z.string().max(200).nullable(), active: z.boolean() }).strict()).max(10).optional(),
+  rewards: z.array(z.object({ _id: z.unknown().optional(), name: z.string().trim().min(1).max(100), icon: z.string().max(30), cost: z.number().int().min(1).max(1000000), note: z.string().max(200).nullable(), active: z.boolean(), redeemed: z.number().int().min(0).default(0) }).strict()).max(20).optional(),
+}).strict();
 
 export async function studioMutate(
   userId: string,
@@ -64,7 +72,7 @@ export async function studioMutate(
   if (isUnsupportedStudioApi(clean)) {
     throw Object.assign(new Error("This feature is not available yet"), { status: 404 });
   }
-  const protectedWrite = clean.startsWith("customers/") || ["campaigns", "referral", "loyalty", "widgets"].some((prefix) => clean === prefix || clean.startsWith(`${prefix}/`));
+  const protectedWrite = clean.startsWith("customers/") || ["campaigns", "referral", "loyalty", "widgets", "whatsapp"].some((prefix) => clean === prefix || clean.startsWith(`${prefix}/`));
   if (protectedWrite) {
     const subscription = await ensureSubscription(userId);
     if (effectiveSubscription(subscription.status, subscription.trialEndsAt) === "restricted") {
@@ -175,10 +183,19 @@ export async function studioMutate(
     return { customer: { id: String(customer._id), note: customer.note, tags: customer.tags, marketingConsent: customer.marketingConsent } };
   }
 
+  if (clean.match(/^loyalty\/customers\/[^/]+\/redeem$/) && method === "POST") {
+    const customerId = clean.split("/")[2];
+    if (!mongoose.isValidObjectId(customerId)) throw Object.assign(new Error("Invalid customer"), { status: 400 });
+    const rewardIndex = z.number().int().min(0).safeParse(body.rewardIndex);
+    if (!rewardIndex.success) throw Object.assign(new Error("Select a valid reward"), { status: 400 });
+    return redeemReward(userId, customerId, rewardIndex.data);
+  }
+
   if (["referral", "loyalty", "widgets"].includes(clean) && method === "PUT") {
+    const safeBody = clean === "loyalty" ? loyaltySchema.parse(body) : body;
     const record = await StudioConfig.findOneAndUpdate(
       { user: userId, key: clean },
-      { $set: Object.fromEntries(Object.entries(body).map(([key, value]) => [`data.${key}`, value])) },
+      { $set: Object.fromEntries(Object.entries(safeBody).map(([key, value]) => [`data.${key}`, value])) },
       { new: true, upsert: true, setDefaultsOnInsert: true }
     );
     return { [clean === "widgets" ? "config" : "program"]: record.data };
@@ -213,6 +230,8 @@ export async function studioMutate(
     await Promise.all([
       StudioCampaign.deleteMany({ user: userId }), StudioConfig.deleteMany({ user: userId }),
       StudioCampaignRecipient.deleteMany({ user: userId }),
+      StudioLoyaltyTransaction.deleteMany({ user: userId }),
+      StudioRewardRedemption.deleteMany({ user: userId }),
       StudioCustomer.deleteMany({ user: userId }), StudioInfluencer.deleteMany({ user: userId }),
       StudioOrder.deleteMany({ user: userId }), StudioSubscription.deleteMany({ user: userId }),
       StudioConvertyConnection.deleteMany({ user: userId }),

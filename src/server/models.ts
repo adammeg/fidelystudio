@@ -161,6 +161,35 @@ const CampaignRecipientSchema = new Schema(
 );
 CampaignRecipientSchema.index({ campaign: 1, customer: 1, channel: 1 }, { unique: true });
 
+const LoyaltyTransactionSchema = new Schema(
+  {
+    user: { type: Schema.Types.ObjectId, ref: "StudioUser", required: true, index: true },
+    customer: { type: Schema.Types.ObjectId, ref: "StudioCustomer", required: true, index: true },
+    order: { type: Schema.Types.ObjectId, ref: "StudioOrder", default: null, index: true },
+    type: { type: String, enum: ["earned", "redeemed", "adjustment", "reversal"], required: true },
+    points: { type: Number, required: true },
+    description: { type: String, required: true },
+    rewardName: { type: String, default: null },
+    idempotencyKey: { type: String, required: true },
+    createdBy: { type: String, enum: ["system", "shop"], default: "system" },
+  },
+  { timestamps: true }
+);
+LoyaltyTransactionSchema.index({ user: 1, idempotencyKey: 1 }, { unique: true });
+
+const RewardRedemptionSchema = new Schema(
+  {
+    user: { type: Schema.Types.ObjectId, ref: "StudioUser", required: true, index: true },
+    customer: { type: Schema.Types.ObjectId, ref: "StudioCustomer", required: true, index: true },
+    transaction: { type: Schema.Types.ObjectId, ref: "StudioLoyaltyTransaction", required: true, unique: true },
+    rewardName: { type: String, required: true },
+    pointsCost: { type: Number, required: true },
+    status: { type: String, enum: ["issued", "fulfilled", "cancelled"], default: "issued" },
+    fulfilledAt: { type: Date, default: null },
+  },
+  { timestamps: true }
+);
+
 const InfluencerSchema = new Schema(
   {
     user: { type: Schema.Types.ObjectId, ref: "StudioUser", required: true, index: true },
@@ -189,7 +218,7 @@ const SubscriptionSchema = new Schema(
   {
     user: { type: Schema.Types.ObjectId, ref: "StudioUser", required: true, unique: true, index: true },
     plan: { type: String, enum: ["fidely"], default: "fidely" },
-    status: { type: String, enum: ["trialing", "active", "past_due", "cancelled"], default: "trialing" },
+    status: { type: String, enum: ["trialing", "pending_payment", "active", "past_due", "cancelled"], default: "trialing" },
     trialEndsAt: { type: Date, required: true },
     currentPeriodEndsAt: { type: Date, default: null },
     providerCustomerId: { type: String, default: null },
@@ -234,5 +263,9 @@ export const StudioSubscription =
   mongoose.models.StudioSubscription || mongoose.model("StudioSubscription", SubscriptionSchema);
 export const StudioCampaignRecipient =
   mongoose.models.StudioCampaignRecipient || mongoose.model("StudioCampaignRecipient", CampaignRecipientSchema);
+export const StudioLoyaltyTransaction =
+  mongoose.models.StudioLoyaltyTransaction || mongoose.model("StudioLoyaltyTransaction", LoyaltyTransactionSchema);
+export const StudioRewardRedemption =
+  mongoose.models.StudioRewardRedemption || mongoose.model("StudioRewardRedemption", RewardRedemptionSchema);
 export const StudioAuditLog =
   mongoose.models.StudioAuditLog || mongoose.model("StudioAuditLog", AuditLogSchema);

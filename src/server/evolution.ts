@@ -1,6 +1,4 @@
-import "server-only";
-
-import { StudioCampaignRecipient, StudioCustomer, StudioWhatsAppConnection } from "./models";
+import { StudioCampaignRecipient, StudioCustomer, StudioSubscription, StudioUser, StudioWhatsAppConnection } from "./models";
 import { randomToken, sha256 } from "./security";
 
 function configuration() {
@@ -102,6 +100,26 @@ export async function sendCampaignBatch(userId: string, slug: string, limit = 20
   const remaining = await StudioCampaignRecipient.countDocuments({ user: userId, campaign: campaign._id, status: "queued" });
   if (!remaining) { campaign.state = "sent"; await campaign.save(); }
   return { sent, attempted: queued.length, remaining, complete: remaining === 0 };
+}
+
+export async function sendDeliveryPointsUpdate(userId: string, customerId: string, earned: number) {
+  if (earned <= 0) return { sent: false };
+  const [connection, subscription, customer, user] = await Promise.all([
+    StudioWhatsAppConnection.findOne({ user: userId, status: "connected" }),
+    StudioSubscription.findOne({ user: userId, status: "active" }).lean(),
+    StudioCustomer.findOne({ _id: customerId, user: userId }).lean(),
+    StudioUser.findById(userId).select("shopName").lean(),
+  ]);
+  if (!connection || !subscription || !customer?.marketingConsent?.whatsapp) return { sent: false };
+  const number = String(customer.phone || "").replace(/\D/g, "");
+  if (!number) return { sent: false };
+  const { getLoyaltyProgram } = await import("./loyalty");
+  const program = await getLoyaltyProgram(userId);
+  const nextReward = program.rewards.filter((reward) => reward.active && reward.cost > customer.points).sort((a, b) => a.cost - b.cost)[0];
+  const rewardText = nextReward ? ` You need ${nextReward.cost - customer.points} more points to unlock ${nextReward.name}.` : " You can now redeem an available reward.";
+  const text = `Thank you for your delivered order from ${user?.shopName || "our store"}! You earned ${earned} points. Your balance is ${customer.points} points.${rewardText}`;
+  const data = await request(`/message/sendText/${encodeURIComponent(connection.instanceName)}`, { method: "POST", body: JSON.stringify({ number, textMessage: { text }, linkPreview: false }) });
+  return { sent: true, providerMessageId: data?.key?.id || null };
 }
 
 export function evolutionConnectionState(value: unknown) { return normalizeState(value); }

@@ -55,6 +55,11 @@ const mainNav: NavEntry[] = [
     href: "/campaigns",
     icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 13l13-9-3 17-4-5-6-3z" /></svg>,
   },
+  {
+    label: "Rewards",
+    href: "/loyalty",
+    icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 9h16v11H4zM3 6h18v4H3zM12 6v14M12 6c-4 0-5-5-1-4 2 .5 1 4 1 4zM12 6c4 0 5-5 1-4-2 .5-1 4-1 4z" /></svg>,
+  },
 ];
 
 const settingsNav: NavEntry = {

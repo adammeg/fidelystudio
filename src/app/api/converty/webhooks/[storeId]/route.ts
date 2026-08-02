@@ -23,7 +23,7 @@ export async function POST(
   }
   const order = body?.data?.order || body?.order || body?.data || body;
   try {
-    const synced = await syncOrder(String(connection.user), order);
+    const synced = await syncOrder(String(connection.user), order, true);
     await StudioConvertyConnection.updateOne({ _id: connection._id }, { $set: { lastWebhookAt: new Date(), lastWebhookError: null } });
     return NextResponse.json({ success: true, synced });
   } catch (error) {

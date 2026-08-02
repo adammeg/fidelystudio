@@ -20,7 +20,7 @@ export default async function CustomerPage({ params }: { params: Promise<{ id: s
     if (error instanceof Error && "status" in error && error.status === 404) notFound();
     throw error;
   }
-  const { customer, stats, orders } = data;
+  const { customer, stats, orders, loyaltyTransactions } = data;
   return <>
     <header className="topbar"><div>
       <div className="breadcrumb"><Link href="/customers">Customers</Link><span>/</span><span className="cur">{customer.name}</span></div>
@@ -44,6 +44,10 @@ export default async function CustomerPage({ params }: { params: Promise<{ id: s
         ].map(([label, value], index) => <article className={`kpi${index === 2 ? " feature" : ""}`} key={label}>
           <div className="k-label">{label}</div><div className="k-val">{value}</div>
         </article>)}
+      </section>
+      <section className="panel block">
+        <div className="p-head"><div><h3>Points and rewards</h3><div className="sub">Complete audited loyalty activity</div></div><b>{fmt(customer.points)} points available</b></div>
+        {loyaltyTransactions.length ? <div className="table-scroll"><table><thead><tr><th>Date</th><th>Activity</th><th>Type</th><th className="num">Points</th></tr></thead><tbody>{loyaltyTransactions.map((transaction) => <tr key={transaction.id}><td>{date(transaction.createdAt)}</td><td><b>{transaction.description}</b></td><td>{transaction.type}</td><td className="num" style={{ color: transaction.points >= 0 ? "var(--pos-fg)" : "#C2603C" }}>{transaction.points > 0 ? "+" : ""}{fmt(transaction.points)}</td></tr>)}</tbody></table></div> : <div className="empty-state"><p>No points activity yet.</p></div>}
       </section>
       <div className="grid-12 block">
         <section className="panel span8">
