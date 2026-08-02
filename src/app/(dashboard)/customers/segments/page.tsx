@@ -11,6 +11,8 @@ export default async function SegmentsPage() {
     { key: "atRisk", name: "At-risk customers", count: counts.atRisk, rule: "Last delivered order was 60–89 days ago." },
     { key: "dormant", name: "Dormant customers", count: counts.dormant, rule: "Last delivered order was at least 90 days ago." },
     { key: "highBasket", name: "High basket customers", count: counts.highBasket, rule: `Average delivered basket is above the store average of ${fmt(storeAvgBasket)} ${currency}.` },
+    { key: "closeReward", name: "Close to a reward", count: counts.closeReward, rule: "Currently has between 70 and 99 loyalty points." },
+    { key: "influencerAcquired", name: "Influencer-acquired", count: counts.influencerAcquired, rule: "Customer was first acquired through an influencer source." },
   ];
   const tabs = [
     { label: "Segments", href: "/customers/segments", count: segments.length },
@@ -24,7 +26,7 @@ export default async function SegmentsPage() {
     <Tabbar tabs={tabs} />
     <div className="content">
       <div className="explain-card"><div><div className="ec-t">Every segment has a visible rule</div>
-        <div className="ec-c">These are analytics views, not messaging audiences. Campaign delivery is intentionally unavailable for now.</div></div>
+        <div className="ec-c">Segments update from delivered orders and loyalty activity. A customer can belong to more than one segment and each segment can be selected when creating a WhatsApp campaign.</div></div>
       </div>
       <section className="seg-grid block">
         {segments.map((segment) => <article className="segc" key={segment.name}>

@@ -21,6 +21,7 @@ export default async function CustomerPage({ params }: { params: Promise<{ id: s
     throw error;
   }
   const { customer, stats, orders, loyaltyTransactions } = data;
+  const productPurchases = orders.flatMap((order) => order.products.map((product) => ({ ...product, orderId: order.id, reference: order.reference, status: order.status, placedAt: order.placedAt })));
   return <>
     <header className="topbar"><div>
       <div className="breadcrumb"><Link href="/customers">Customers</Link><span>/</span><span className="cur">{customer.name}</span></div>
@@ -48,6 +49,10 @@ export default async function CustomerPage({ params }: { params: Promise<{ id: s
       <section className="panel block">
         <div className="p-head"><div><h3>Points and rewards</h3><div className="sub">Complete audited loyalty activity</div></div><b>{fmt(customer.points)} points available</b></div>
         {loyaltyTransactions.length ? <div className="table-scroll"><table><thead><tr><th>Date</th><th>Activity</th><th>Type</th><th className="num">Points</th></tr></thead><tbody>{loyaltyTransactions.map((transaction) => <tr key={transaction.id}><td>{date(transaction.createdAt)}</td><td><b>{transaction.description}</b></td><td>{transaction.type}</td><td className="num" style={{ color: transaction.points >= 0 ? "var(--pos-fg)" : "#C2603C" }}>{transaction.points > 0 ? "+" : ""}{fmt(transaction.points)}</td></tr>)}</tbody></table></div> : <div className="empty-state"><p>No points activity yet.</p></div>}
+      </section>
+      <section className="panel block">
+        <div className="p-head"><div><h3>Products purchased</h3><div className="sub">Items found in this customer&apos;s synced Converty order carts</div></div><b>{productPurchases.reduce((sum, product) => sum + product.quantity, 0)} items</b></div>
+        {productPurchases.length ? <div className="table-scroll"><table className="dense"><thead><tr><th>Product</th><th>Variant</th><th>Order</th><th>Status</th><th className="num">Quantity</th><th className="num">Unit price</th><th>Date</th></tr></thead><tbody>{productPurchases.map((product, index) => <tr key={`${product.orderId}-${product.id}-${index}`}><td><b>{product.name}</b></td><td className="muted">{product.variant || "—"}</td><td>{product.reference || "—"}</td><td><span className={`status-pill status-${product.status}`}>{product.status}</span></td><td className="num">{product.quantity}</td><td className="num">{product.unitPrice == null ? "—" : `${fmt(product.unitPrice)} TND`}</td><td>{date(product.placedAt)}</td></tr>)}</tbody></table></div> : <div className="empty-state"><h3>No product details available</h3><p>Older Converty orders may not include cart item details. New synced orders will appear here when the data is provided.</p></div>}
       </section>
       <div className="grid-12 block">
         <section className="panel span8">

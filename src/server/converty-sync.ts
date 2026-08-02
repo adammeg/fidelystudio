@@ -17,7 +17,9 @@ export type ConvertyOrder = {
   };
   cart?: {
     quantity?: number;
-    product?: { cost?: number; deliveryCost?: number };
+    price?: number;
+    variant?: { name?: string; title?: string };
+    product?: { _id?: string; name?: string; title?: string; cost?: number; price?: number; deliveryCost?: number; image?: string; images?: string[] };
   }[];
   total?: {
     totalPrice?: number;

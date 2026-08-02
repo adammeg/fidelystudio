@@ -6,6 +6,67 @@
   --font-brand: Georgia, "Times New Roman", serif;
 }
 
+@media (max-width: 900px) {
+  .loyalty-editor-table,
+  .loyalty-editor-table tbody,
+  .loyalty-editor-table tr,
+  .loyalty-editor-table td { display: block; width: 100%; }
+  .loyalty-editor-table { min-width: 0 !important; }
+  .loyalty-editor-table thead { display: none; }
+  .loyalty-editor-table tr { padding: 12px 14px; border-top: 1px solid var(--border); }
+  .loyalty-editor-table td { display: grid; grid-template-columns: minmax(105px, .42fr) minmax(0, 1fr); align-items: center; gap: 12px; padding: 7px 0 !important; border: 0; text-align: left !important; }
+  .loyalty-editor-table td:nth-child(1)::before { content: "Name"; }
+  .loyalty-editor-table td:nth-child(2)::before { content: "Details"; }
+  .loyalty-editor-table td:nth-child(3)::before { content: "Points / instructions"; }
+  .loyalty-editor-table td:nth-child(4)::before { content: "Validation / redeemed"; }
+  .loyalty-editor-table td:nth-child(5)::before { content: "Status"; }
+  .loyalty-editor-table td::before { color: var(--text-tertiary); font-size: 10px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; }
+  .loyalty-editor-table .input { width: 100% !important; max-width: none !important; }
+  [data-screen-label="Earning rules"] .p-head,
+  [data-screen-label="Rewards"] .p-head { align-items: flex-start; flex-wrap: wrap; }
+
+  .filter-bar .search {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    width: 100%;
+    margin-left: 0;
+    gap: 8px;
+  }
+
+  .filter-bar .search > svg {
+    display: none;
+  }
+
+  .filter-bar .search > input[name="q"],
+  .filter-bar .search > select {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
+
+  .filter-bar .search > input[type="date"],
+  .filter-bar .search > .btn {
+    width: 100%;
+  }
+
+  .customer-table {
+    min-width: 980px;
+  }
+
+  .seg-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+@media (max-width: 520px) {
+  .filter-bar .search {
+    grid-template-columns: 1fr;
+  }
+
+  .filter-bar .search > * {
+    grid-column: 1 !important;
+  }
+}
+
 html,
 body {
   min-height: 100%;

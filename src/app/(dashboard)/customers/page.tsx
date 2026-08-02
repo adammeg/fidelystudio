@@ -4,6 +4,8 @@ import ConvertySyncCrumb from "@/components/studio/ConvertySyncCrumb";
 import { getCustomers, getSegments, getCohorts } from "@/lib/studio";
 import { fmt, initials, avatarColor, timeAgo } from "@/lib/format";
 
+const segmentLabels: Record<string, string> = { vip: "VIP", atRisk: "At risk", dormant: "Dormant", highBasket: "High basket", closeReward: "Close to reward", influencerAcquired: "Influencer" };
+
 export default async function CustomersPage({ searchParams }: { searchParams: Promise<{ q?: string; segment?: string; source?: string; from?: string; to?: string }> }) {
   const sp = await searchParams;
   const qs = new URLSearchParams({ limit: "100" });
@@ -63,11 +65,12 @@ export default async function CustomersPage({ searchParams }: { searchParams: Pr
           </div>
           <div className="panel">
             {customers.length ? (
-              <div className="table-scroll"><table className="dense">
-                <thead><tr><th>Customer</th><th>Phone</th><th className="num">Placed</th><th className="num">Delivered</th><th className="num">Refused</th><th className="num">Revenue</th><th>Last delivered</th><th /></tr></thead>
+              <div className="table-scroll"><table className="dense customer-table">
+                <thead><tr><th>Customer</th><th>Segments</th><th>Phone</th><th className="num">Placed</th><th className="num">Delivered</th><th className="num">Refused</th><th className="num">Revenue</th><th>Last delivered</th><th /></tr></thead>
                 <tbody>{customers.map((customer) => (
                   <tr key={customer.id}>
                     <td><div className="who-cell"><span className="av" style={{ background: avatarColor(customer.id) }}>{initials(customer.name)}</span><span className="h">{customer.name}</span></div></td>
+                    <td><div className="tag-wrap">{customer.segments.length ? customer.segments.map((segment) => <span className="tag-pill" key={segment}>{segmentLabels[segment]}</span>) : <span className="muted">Standard</span>}</div></td>
                     <td className="muted">{customer.phone}</td>
                     <td className="num">{customer.placed}</td><td className="num positive">{customer.delivered}</td>
                     <td className="num">{customer.refused}</td><td className="num">{fmt(customer.spent)} {currency}</td>

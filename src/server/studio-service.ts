@@ -290,12 +290,13 @@ export async function studioGet(userId: string, path: string, search = new URLSe
     if (source) rows = rows.filter((row) => row.source?.type === source);
     if (from && Number.isFinite(from.getTime())) rows = rows.filter((row) => row.lastDeliveredAt && new Date(row.lastDeliveredAt) >= from);
     if (to && Number.isFinite(to.getTime())) rows = rows.filter((row) => row.lastDeliveredAt && new Date(row.lastDeliveredAt) <= to);
+    const classification = classifyCustomers(rows);
     if (segment) {
-      const classification = classifyCustomers(rows);
       if (segment in classification.members) {
         rows = rows.filter((row) => isInSegment(row, segment, classification.storeAvgBasket));
       }
     }
+    rows = rows.map((row) => ({ ...row, segments: (Object.keys(classification.members) as SegmentKey[]).filter((key) => isInSegment(row, key, classification.storeAvgBasket)) }));
     if (clean === "loyalty/customers") {
       rows = rows.filter((row) => row.points > 0);
       const activity = await StudioLoyaltyTransaction.aggregate([{ $match: { user: new mongoose.Types.ObjectId(userId) } }, { $group: { _id: "$customer", earned: { $sum: { $cond: [{ $gt: ["$points", 0] }, "$points", 0] } }, redeemed: { $sum: { $cond: [{ $lt: ["$points", 0] }, { $abs: "$points" }, 0] } }, lastActivityAt: { $max: "$createdAt" } } }]);
@@ -338,6 +339,14 @@ export async function studioGet(userId: string, path: string, search = new URLSe
         pointsEarned: 0,
         placedAt: order.placedAt,
         deliveredAt: order.deliveredAt,
+        products: ((order.raw as { cart?: Array<{ quantity?: number; price?: number; variant?: { name?: string; title?: string }; product?: { _id?: string; name?: string; title?: string; price?: number; image?: string; images?: string[] } }> } | null)?.cart || []).map((item, index) => ({
+          id: item.product?._id || `${order._id}-${index}`,
+          name: item.product?.name || item.product?.title || "Product",
+          variant: item.variant?.name || item.variant?.title || null,
+          quantity: item.quantity || 1,
+          unitPrice: item.price || item.product?.price || null,
+          image: item.product?.image || item.product?.images?.[0] || null,
+        })),
       })),
       referrals: [],
       loyaltyTransactions: loyaltyTransactions.map((transaction) => ({ id: id(transaction._id), type: transaction.type, points: transaction.points, description: transaction.description, rewardName: transaction.rewardName || null, createdAt: transaction.createdAt })),

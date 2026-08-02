@@ -58,7 +58,7 @@ export default function LoyaltyManager({ program }: { program: LoyaltyProgram })
     setRewards((items) => items.map((reward, index) => index === i ? { ...reward, ...patch } : reward));
   }
   function addReward() {
-    setRewards((items) => [...items, { name: "New gift", icon: "gift", cost: 100, note: "", active: true, redeemed: 0 }]);
+    setRewards((items) => [...items, { name: "", icon: "gift", cost: 100, note: "", active: true, redeemed: 0 }]);
   }
 
   async function save() {
@@ -101,7 +101,7 @@ export default function LoyaltyManager({ program }: { program: LoyaltyProgram })
             </button>
           </div>
         </div>
-        <table>
+        <table className="loyalty-editor-table">
           <thead>
             <tr>
               <th>Rule</th>
@@ -113,16 +113,17 @@ export default function LoyaltyManager({ program }: { program: LoyaltyProgram })
           </thead>
           <tbody>
             {earnRules.map((r, i) => (
-              <tr key={`${r.name}-${i}`} className={r.active ? undefined : "row-inactive"}>
+              <tr key={`rule-${i}`} className={r.active ? undefined : "row-inactive"}>
                 <td>
                   <div className="rule-nm">
                     <span className="rule-ic">{ruleIcon(r.icon)}</span>
                     <input className="input" aria-label="Rule name" placeholder="Example: Delivered order" value={r.name} onChange={(event) => updateRule(i, { name: event.target.value })} style={{ maxWidth: 180 }} />
                   </div>
                 </td>
-                <td className="muted">{r.note || "—"}</td>
+                <td className="muted"><input className="input" aria-label="Rule trigger" placeholder="Example: Every delivered order" value={r.note || ""} onChange={(event) => updateRule(i, { note: event.target.value })} /></td>
                 <td>
                   <input className="input" type="number" min={0} aria-label="Points earned" placeholder="Points" value={r.points} onChange={(event) => updateRule(i, { points: Number(event.target.value) })} style={{ width: 90 }} />
+                  <input className="input" type="number" min={0} aria-label="Amount interval" placeholder="Per TND (0 = once)" value={r.perAmount} onChange={(event) => updateRule(i, { perAmount: Number(event.target.value) })} style={{ width: 115, marginLeft: 6 }} />
                   <small className="muted">{ruleReward(r)}</small>
                 </td>
                 <td>
@@ -155,7 +156,7 @@ export default function LoyaltyManager({ program }: { program: LoyaltyProgram })
           </div>
           <button className="btn btn-secondary btn-sm" onClick={addReward}>Add gift</button>
         </div>
-        <table>
+        <table className="loyalty-editor-table">
           <thead>
             <tr>
               <th>Points</th>
@@ -167,7 +168,7 @@ export default function LoyaltyManager({ program }: { program: LoyaltyProgram })
           </thead>
           <tbody>
             {rewards.map((r, i) => (
-              <tr key={`${r.name}-${i}`} className={r.active ? undefined : "row-inactive"}>
+              <tr key={r._id ? String(r._id) : `reward-${i}`} className={r.active ? undefined : "row-inactive"}>
                 <td>
                   <span className="pts-cell">
                     <input className="input" type="number" min={1} aria-label="Reward points cost" placeholder="Points required" value={r.cost} onChange={(event) => updateReward(i, { cost: Number(event.target.value) })} style={{ width: 90 }} />

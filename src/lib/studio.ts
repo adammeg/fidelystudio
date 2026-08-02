@@ -145,6 +145,7 @@ export interface ApiCustomer {
   lastDeliveredAt: string | null;
   firstDeliveredAt: string | null;
   createdAt: string;
+  segments: ("vip" | "atRisk" | "dormant" | "highBasket" | "closeReward" | "influencerAcquired")[];
 }
 
 export interface CustomerDetail {
@@ -159,6 +160,7 @@ export interface CustomerDetail {
     pointsEarned: number;
     placedAt: string;
     deliveredAt: string | null;
+    products: { id: string; name: string; variant: string | null; quantity: number; unitPrice: number | null; image: string | null }[];
   }[];
   referrals: { id: string; code: string; status: string; referred: { name?: string; phone?: string }; createdAt: string }[];
   loyaltyTransactions: { id: string; type: string; points: number; description: string; rewardName: string | null; createdAt: string }[];
