@@ -11,11 +11,13 @@ const stateMeta: Record<string, { label: string; cls: string }> = {
 };
 function CampaignRows({ campaigns, empty }: { campaigns: ApiCampaign[]; empty: string }) {
   if (!campaigns.length) return <div className="empty-state"><h3>{empty}</h3><p>Campaigns in this stage will appear here.</p></div>;
-  return <div>{campaigns.map((campaign) => { const meta = stateMeta[campaign.state] || { label: campaign.state, cls: "" }; return <Link className="ch-row campaign-history-link" href={`/campaigns/${campaign.slug}`} key={campaign.id}>
-    <span className="ch-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 13l13-9-3 17-4-5-6-3z" /></svg></span>
-    <span><span className="ch-nm">{campaign.name}</span><span className="ch-sub">WhatsApp · {campaign.goal} · {campaign.eligibleCount} eligible customers{campaign.createdAt ? ` · ${new Date(campaign.createdAt).toLocaleDateString("en-GB")}` : ""}</span></span>
-    <span className={`status-pill ${meta.cls}`}>{meta.label}</span><span className="campaign-open">View →</span>
-  </Link>; })}</div>;
+  return <div>{campaigns.map((campaign) => {
+    const meta = stateMeta[campaign.state] || { label: campaign.state, cls: "" }; return <Link className="ch-row campaign-history-link" href={`/campaigns/${campaign.slug}`} key={campaign.id}>
+      <span className="ch-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 13l13-9-3 17-4-5-6-3z" /></svg></span>
+      <span><span className="ch-nm">{campaign.name}</span><span className="ch-sub">WhatsApp · {campaign.goal} · {campaign.eligibleCount} eligible customers{campaign.createdAt ? ` · ${new Date(campaign.createdAt).toLocaleDateString("en-GB")}` : ""}</span></span>
+      <span className={`status-pill ${meta.cls}`}>{meta.label}</span><span className="campaign-open">View →</span>
+    </Link>;
+  })}</div>;
 }
 
 export default async function CampaignsPage({ searchParams }: { searchParams: Promise<{ view?: string; segment?: string; incentive?: string; goal?: string; name?: string; type?: string }> }) {
@@ -39,7 +41,7 @@ export default async function CampaignsPage({ searchParams }: { searchParams: Pr
   return <><header className="topbar"><div><ConvertySyncCrumb className="crumb" /><h1>Campaigns</h1><div className="subt">Create, resume, and review every WhatsApp campaign from one place.</div></div><div className="tb-actions"><Link className="btn btn-primary" href="/campaigns?view=create">Create campaign</Link></div></header>
     <div className="content"><section className="kpi-row block">{[["All campaigns", campaigns.length], ["Drafts", drafts.length], ["In progress", active.length], ["Campaign history", history.length]].map(([label, value]) => <article className="kpi" key={label}><div className="k-label">{label}</div><div className="k-val">{value}</div></article>)}</section>
       <div className="campaign-library"><section className="panel"><div className="p-head"><div><h3>Drafts</h3><div className="sub">Campaigns waiting for review or launch</div></div></div><CampaignRows campaigns={drafts} empty="No campaign drafts" /></section>
-      <section className="panel"><div className="p-head"><div><h3>In progress</h3><div className="sub">Scheduled campaigns and messages currently sending</div></div></div><CampaignRows campaigns={active} empty="No active campaigns" /></section>
-      <section className="panel campaign-history"><div className="p-head"><div><h3>Campaign history</h3><div className="sub">Completed and cancelled campaigns remain available for consultation</div></div></div><CampaignRows campaigns={history} empty="No old campaigns yet" /></section></div>
+        <section className="panel"><div className="p-head"><div><h3>In progress</h3><div className="sub">Scheduled campaigns and messages currently sending</div></div></div><CampaignRows campaigns={active} empty="No active campaigns" /></section>
+        <section className="panel campaign-history"><div className="p-head"><div><h3>Campaign history</h3><div className="sub">Completed and cancelled campaigns remain available for consultation</div></div></div><CampaignRows campaigns={history} empty="No old campaigns yet" /></section></div>
     </div></>;
 }

@@ -15,6 +15,12 @@ button {
   font-family: inherit;
 }
 
+[data-screen-label="Earning rules"] input::placeholder,
+[data-screen-label="Rewards"] input::placeholder {
+  color: var(--text-tertiary);
+  opacity: 1;
+}
+
 .campaign-library {
   display: grid;
   gap: 16px;
@@ -53,6 +59,27 @@ button {
 
   .campaign-open {
     margin-left: auto;
+  }
+
+  [data-screen-label="Loyalty customers"] {
+    overflow-x: auto;
+  }
+
+  [data-screen-label="Loyalty customers"] table,
+  [data-screen-label="Earning rules"] table,
+  [data-screen-label="Rewards"] table {
+    min-width: 760px;
+  }
+
+  [data-screen-label="Loyalty customers"] .table-scroll,
+  [data-screen-label="Earning rules"],
+  [data-screen-label="Rewards"] {
+    overflow-x: auto;
+  }
+
+  .cod-flow {
+    overflow-x: auto;
+    padding-bottom: 6px;
   }
 }
 

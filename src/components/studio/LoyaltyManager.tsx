@@ -117,12 +117,12 @@ export default function LoyaltyManager({ program }: { program: LoyaltyProgram })
                 <td>
                   <div className="rule-nm">
                     <span className="rule-ic">{ruleIcon(r.icon)}</span>
-                    <input className="input" aria-label="Rule name" value={r.name} onChange={(event) => updateRule(i, { name: event.target.value })} style={{ maxWidth: 180 }} />
+                    <input className="input" aria-label="Rule name" placeholder="Example: Delivered order" value={r.name} onChange={(event) => updateRule(i, { name: event.target.value })} style={{ maxWidth: 180 }} />
                   </div>
                 </td>
                 <td className="muted">{r.note || "—"}</td>
                 <td>
-                  <input className="input" type="number" min={0} aria-label="Points earned" value={r.points} onChange={(event) => updateRule(i, { points: Number(event.target.value) })} style={{ width: 90 }} />
+                  <input className="input" type="number" min={0} aria-label="Points earned" placeholder="Points" value={r.points} onChange={(event) => updateRule(i, { points: Number(event.target.value) })} style={{ width: 90 }} />
                   <small className="muted">{ruleReward(r)}</small>
                 </td>
                 <td>
@@ -170,12 +170,12 @@ export default function LoyaltyManager({ program }: { program: LoyaltyProgram })
               <tr key={`${r.name}-${i}`} className={r.active ? undefined : "row-inactive"}>
                 <td>
                   <span className="pts-cell">
-                    <input className="input" type="number" min={1} aria-label="Reward points cost" value={r.cost} onChange={(event) => updateReward(i, { cost: Number(event.target.value) })} style={{ width: 90 }} />
+                    <input className="input" type="number" min={1} aria-label="Reward points cost" placeholder="Points required" value={r.cost} onChange={(event) => updateReward(i, { cost: Number(event.target.value) })} style={{ width: 90 }} />
                     <span className="u">pts</span>
                   </span>
                 </td>
-                <td><input className="input" aria-label="Reward name" value={r.name} onChange={(event) => updateReward(i, { name: event.target.value })} /></td>
-                <td><input className="input" aria-label="Reward note" value={r.note || ""} onChange={(event) => updateReward(i, { note: event.target.value })} /></td>
+                <td><input className="input" aria-label="Reward name" placeholder="Example: Free delivery" value={r.name} onChange={(event) => updateReward(i, { name: event.target.value })} /></td>
+                <td><input className="input" aria-label="Reward note" placeholder="Explain how the customer uses this gift" value={r.note || ""} onChange={(event) => updateReward(i, { note: event.target.value })} /></td>
                 <td className="num">{r.redeemed}</td>
                 <td>
                   <div className="status-cell" onClick={() => toggleReward(i)} style={{ cursor: "pointer" }}>
