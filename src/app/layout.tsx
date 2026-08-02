@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 export const dynamic = "force-dynamic";
@@ -6,6 +6,12 @@ export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
   title: "Fidely — Studio",
   description: "Fidely growth layer for e-commerce merchants",
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  themeColor: "#3d3029",
 };
 
 export default async function RootLayout({

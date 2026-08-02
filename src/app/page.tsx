@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 
 const Check = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
@@ -11,8 +12,7 @@ export default function LandingPage() {
     <div className="landing">
       <header className="landing-nav">
         <Link className="landing-brand" href="/" aria-label="Fidely home">
-          <span className="sb-logo">F</span>
-          <span>Fidely</span>
+          <Image src="/complete-fidely-logo.png" width={132} height={49} alt="Fidely" priority />
         </Link>
         <nav aria-label="Main navigation">
           <a href="#product">Product</a>
@@ -59,7 +59,7 @@ export default function LandingPage() {
 
           <div className="landing-preview" aria-label="Fidely dashboard preview">
             <div className="preview-sidebar">
-              <div className="preview-brand"><span>F</span> Fidely</div>
+              <div className="preview-brand"><Image src="/fidely-logo.png" width={28} height={28} alt="" /> Fidely</div>
               <i className="active" /><i /><i /><i />
             </div>
             <div className="preview-main">

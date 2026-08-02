@@ -1,3 +1,5 @@
+import Image from "next/image";
+
 export default async function LoginPage({
   searchParams,
 }: {
@@ -9,8 +11,7 @@ export default async function LoginPage({
     <div className="login-wrap">
       <div className="login-card">
         <div className="login-brand">
-          <div className="sb-logo">F</div>
-          <div className="login-brandname">Fidely</div>
+          <Image src="/complete-fidely-logo.png" width={150} height={55} alt="Fidely" priority />
         </div>
         <h1 className="login-title">Connect your store</h1>
         <p className="login-sub">
@@ -39,7 +40,7 @@ export default async function LoginPage({
         </div>
 
         <a className="btn btn-primary login-submit converty-login" href="/api/auth/converty/start">
-          <span className="converty-mark">C</span>
+          <Image className="converty-mark-img" src="/converty-logo.png" width={25} height={25} alt="Converty" />
           Continue with Converty
         </a>
 

@@ -10,7 +10,7 @@ export default async function AdminPage() {
   if (!user) redirect("/login");
   if (user.role !== "admin") redirect("/studio");
   const data = await adminDashboard(String(user._id));
-  return <div style={{ minHeight: "100vh", background: "var(--bg-base)" }}>
+  return <div className="admin-shell">
     <header className="topbar"><div><div className="crumb">Fidely administration</div><h1>Merchant dashboard</h1><div className="subt">Manage stores and the single 50 DT/month subscription.</div></div>
       <form action="/api/logout" method="post"><button className="btn btn-secondary">Sign out</button></form>
     </header>

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 
 interface ShopInfo {
@@ -81,14 +82,14 @@ export default function Sidebar({ shop }: { shop: ShopInfo }) {
   return (
     <nav className="sidebar" data-screen-label="Sidebar">
       <div className="sb-brand">
-        <div className="sb-logo">F</div>
-        <div className="sb-name">Fidely</div>
+        <Image className="sb-logo-img" src="/fidely-logo.png" width={38} height={38} alt="" priority />
+        <Image className="sb-wordmark" src="/complete-fidely-logo.png" width={102} height={38} alt="Fidely" priority />
       </div>
 
       {mainNav.map((item) => {
         const active = sectionActive(pathname, item.href);
         return (
-          <div key={item.href}>
+          <div className="nav-group" key={item.href}>
             <Link
               href={item.href}
               className={`nav-item${active ? " active" : ""}`}

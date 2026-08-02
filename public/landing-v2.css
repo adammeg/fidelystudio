@@ -14,6 +14,33 @@
     var(--paper);
   font-family: "Segoe UI", system-ui, sans-serif;
 }
+
+/* Real brand assets */
+.landing-brand img { width:132px;height:auto;display:block; }
+.preview-brand { display:flex;align-items:center;gap:8px; }
+.preview-brand img { border-radius:8px; }
+.login-brand img { width:150px;height:auto;display:block; }
+.converty-mark-img { width:25px;height:25px;border-radius:7px;object-fit:cover; }
+@media (max-width:560px) {
+  .landing-nav { width:calc(100% - 28px);height:68px; }
+  .landing-brand img { width:112px; }
+  .landing-nav > .btn { min-height:42px;padding-inline:13px;font-size:12px; }
+  .landing-hero { width:calc(100% - 28px);padding-top:48px; }
+  .landing-hero h1 { margin-top:20px;font-size:clamp(38px,12vw,50px);line-height:1.02; }
+  .landing-hero > p { font-size:15px;line-height:1.6; }
+  .landing-actions { flex-direction:column; }
+  .landing-actions .btn { width:100%;min-height:46px;justify-content:center; }
+  .landing-trust { align-items:flex-start;flex-direction:column;gap:10px;margin-left:8px; }
+  .landing-preview { margin-top:42px;height:370px;transform:none;border-radius:16px 16px 0 0; }
+  .preview-main { padding:20px 14px; }
+  .preview-kpis { grid-template-columns:1fr 1fr; }
+  .preview-kpis > div:last-child { display:none; }
+  .landing-section { padding-inline:18px; }
+  .landing-security { width:calc(100% - 36px);margin-block:80px; }
+  .landing-cta { width:calc(100% - 28px);padding:48px 20px;margin-bottom:50px; }
+  .login-wrap { padding:18px;align-items:flex-start; }
+  .login-card { width:100%;margin-top:5vh;padding:28px 22px;border-radius:18px; }
+}
 .landing-nav {
   width: calc(100% - 48px) !important;
   max-width: 1180px;
