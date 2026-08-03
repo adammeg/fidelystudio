@@ -1273,6 +1273,9 @@ tr,
 .empty-icon svg { width: 20px; }
 .influencer-help { margin: -4px 0 14px; font-size: 12px; }
 .influencer-input-list { display: grid; gap: 10px; }
+.influencer-form-body { display: grid; gap: 14px; padding: 16px 20px 20px; }
+.influencer-form-actions { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
+.influencer-form-actions p { color: var(--text-muted); font-size: 11.5px; }
 .influencer-input-row { display: grid; grid-template-columns: minmax(0,1.4fr) minmax(150px,1fr) minmax(120px,.7fr) 36px; gap: 10px; align-items: end; padding: 12px; border: 1px solid var(--border); border-radius: 12px; background: var(--background); }
 .influencer-input-row .field + .field { margin-top: 0; }
 .promo-input { text-transform: uppercase; letter-spacing: .04em; font-weight: 750; }
@@ -1286,6 +1289,10 @@ tr,
 .influencer-bar-track, .mini-revenue-bar { height: 9px; overflow: hidden; border-radius: 999px; background: var(--bg-sunken); }
 .influencer-bar-track i, .mini-revenue-bar i { display: block; height: 100%; border-radius: inherit; background: var(--primary); transition: width .35s ease-out; }
 .influencer-bar-row > b { text-align: right; font-variant-numeric: tabular-nums; }
+.influencer-time-chart { position: relative; padding: 24px 24px 18px 52px; }
+.influencer-time-chart svg { width: 100%; height: 230px; overflow: visible; border-bottom: 1px solid var(--border); background: repeating-linear-gradient(to bottom, transparent 0, transparent 74px, var(--border) 75px); }
+.chart-y { position: absolute; left: 18px; top: 25px; bottom: 38px; display: flex; flex-direction: column; justify-content: space-between; color: var(--text-muted); font-size: 10px; }
+.chart-dates { display: flex; justify-content: space-between; margin-top: 8px; color: var(--text-muted); font-size: 10.5px; }
 .influencer-campaign-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; padding: 16px; }
 .influencer-performance-card { padding: 16px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); }
 .influencer-card-head { display: flex; align-items: center; gap: 10px; }
@@ -1318,6 +1325,10 @@ tr,
   .influencer-bar-row { grid-template-columns: 1fr auto; }
   .influencer-bar-track { grid-column: 1 / -1; grid-row: 2; }
   .influencer-campaign-grid { grid-template-columns: 1fr; }
+  .influencer-form-actions { align-items: stretch; flex-direction: column; }
+  .influencer-form-actions .btn { width: 100%; justify-content: center; }
+  .influencer-time-chart { padding-left: 42px; }
+  .influencer-time-chart svg { height: 180px; }
 }
 
 @media (max-width: 720px) {

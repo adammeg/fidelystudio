@@ -35,6 +35,8 @@ export interface ApiInfluencer {
   deliveredPct: number;
   customers: number;
   budget?: number;
+  roiPct?: number | null;
+  profitable?: boolean;
   earned: number;
   commission: number;
   paidOut: number;
@@ -61,7 +63,6 @@ export interface ApiCampaign {
   updatedAt: string | null;
   channels: string[];
   segmentKey: string | null;
-  influencers: { id: string; handle: string; promoCode: string; budget: number; initial: string; avatarBg: string }[];
   placed: number;
   delivered: number;
   deliveredPct: number;
@@ -239,10 +240,10 @@ export const getOverview = (days = 30) => get<Overview>(`/studio/overview?days=$
 export const getConvertyStatus = () => get<ConvertyStatus>("/studio/converty/status");
 export const getWhatsAppStatus = () => get<WhatsAppStatus>("/studio/whatsapp/status");
 export const getAccount = () => get<AccountData>("/studio/account");
-export const getInfluencers = () => get<{ influencers: ApiInfluencer[] }>("/studio/influencers");
+export const getInfluencers = () => get<{ influencers: ApiInfluencer[]; timeline: { influencerId: string; date: string; orders: number; delivered: number; revenue: number }[] }>("/studio/influencers");
 export const getCampaigns = () => get<{ campaigns: ApiCampaign[] }>("/studio/campaigns");
 export const getCampaign = (slug: string) =>
-  get<{ campaign: ApiCampaign; totals: { placed: number; delivered: number; deliveredPct: number; earned: number; spent: number }; influencers: ApiInfluencer[] }>(
+  get<{ campaign: ApiCampaign; totals: { placed: number; delivered: number; deliveredPct: number; earned: number; spent: number } }>(
     `/studio/campaigns/${encodeURIComponent(slug)}`
   );
 export const getReferral = () => get<ReferralData>("/studio/referral");

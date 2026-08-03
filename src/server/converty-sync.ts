@@ -1,5 +1,5 @@
 import { convertyApi, studioAppUrl } from "./converty";
-import { StudioCampaign, StudioCampaignRecipient, StudioConvertyConnection, StudioCustomer, StudioInfluencer, StudioOrder } from "./models";
+import { StudioCampaignRecipient, StudioConvertyConnection, StudioCustomer, StudioInfluencerCampaign, StudioOrder } from "./models";
 import { decryptSecret } from "./security";
 import { reconcileOrderRewards } from "./loyalty";
 import { sendDeliveryPointsUpdate } from "./evolution";
@@ -91,8 +91,7 @@ export async function syncOrder(userId: string, order: ConvertyOrder, notifyCust
   const placedAt = new Date(order.createdAt || Date.now());
   const promo = promoSnapshot(order);
   const promoCode = promo.code;
-  const influencer = promoCode ? await StudioInfluencer.findOne({ user: userId, code: promoCode }).lean() : null;
-  const promoCampaign = promoCode ? await StudioCampaign.findOne({ user: userId, "influencers.promoCode": promoCode }).sort({ createdAt: -1 }).select("_id").lean() : null;
+  const influencer = promoCode ? await StudioInfluencerCampaign.findOne({ user: userId, promoCode }).lean() : null;
   const customer = await StudioCustomer.findOneAndUpdate(
     { user: userId, phone: order.customer.phone.trim() },
     {
@@ -141,7 +140,7 @@ export async function syncOrder(userId: string, order: ConvertyOrder, notifyCust
       placedAt,
       deliveredAt: delivered,
       sourceUpdatedAt: incomingUpdatedAt,
-      attributedCampaign: promoCampaign?._id || attributedRecipient?.campaign || null,
+      attributedCampaign: attributedRecipient?.campaign || null,
       attributedInfluencer: influencer?._id || null,
     },
     { upsert: !existing, new: true, setDefaultsOnInsert: true }

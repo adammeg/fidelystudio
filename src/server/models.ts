@@ -123,7 +123,7 @@ const OrderSchema = new Schema(
     deliveredAt: { type: Date, default: null },
     sourceUpdatedAt: { type: Date, default: null },
     attributedCampaign: { type: Schema.Types.ObjectId, ref: "StudioCampaign", default: null, index: true },
-    attributedInfluencer: { type: Schema.Types.ObjectId, ref: "StudioInfluencer", default: null, index: true },
+    attributedInfluencer: { type: Schema.Types.ObjectId, ref: "StudioInfluencerCampaign", default: null, index: true },
     promoCode: { type: String, default: null, index: true },
     promoCouponId: { type: String, default: null },
     promoDiscountType: { type: String, default: null },
@@ -155,12 +155,6 @@ const CampaignSchema = new Schema(
     attributionDays: { type: Number, default: 14 },
     audienceCount: { type: Number, default: 0 },
     eligibleCount: { type: Number, default: 0 },
-    influencers: [{
-      influencer: { type: Schema.Types.ObjectId, ref: "StudioInfluencer", required: true },
-      name: { type: String, required: true },
-      promoCode: { type: String, required: true },
-      budget: { type: Number, default: 0 },
-    }],
   },
   { timestamps: true }
 );
@@ -228,6 +222,18 @@ const InfluencerSchema = new Schema(
   { timestamps: true }
 );
 InfluencerSchema.index({ user: 1, code: 1 }, { unique: true });
+
+const InfluencerCampaignSchema = new Schema(
+  {
+    user: { type: Schema.Types.ObjectId, ref: "StudioUser", required: true, index: true },
+    influencerName: { type: String, required: true },
+    promoCode: { type: String, required: true },
+    budget: { type: Number, required: true, min: 0 },
+    status: { type: String, enum: ["active", "paused"], default: "active" },
+  },
+  { timestamps: true }
+);
+InfluencerCampaignSchema.index({ user: 1, promoCode: 1 }, { unique: true });
 
 const ConfigSchema = new Schema(
   {
@@ -341,6 +347,8 @@ export const StudioCampaign =
   mongoose.models.StudioCampaign || mongoose.model("StudioCampaign", CampaignSchema);
 export const StudioInfluencer =
   mongoose.models.StudioInfluencer || mongoose.model("StudioInfluencer", InfluencerSchema);
+export const StudioInfluencerCampaign =
+  mongoose.models.StudioInfluencerCampaign || mongoose.model("StudioInfluencerCampaign", InfluencerCampaignSchema);
 export const StudioConfig =
   mongoose.models.StudioConfig || mongoose.model("StudioConfig", ConfigSchema);
 export const StudioSubscription =

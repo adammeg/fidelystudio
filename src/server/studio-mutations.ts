@@ -8,6 +8,7 @@ import {
   StudioConvertyConnection,
   StudioCustomer,
   StudioInfluencer,
+  StudioInfluencerCampaign,
   StudioLoyaltyTransaction,
   StudioMessageOutbox,
   StudioPaymentRecord,
@@ -43,11 +44,12 @@ const campaignCreateSchema = z.object({
   incentiveType: z.enum(["points", "free_delivery", "discount", "gift"]),
   message: z.string().trim().min(10).max(1000),
   scheduledAt: z.string().datetime().optional(),
-  influencers: z.array(z.object({
-    name: z.string().trim().min(2).max(100),
-    promoCode: z.string().trim().min(2).max(50).transform((value) => value.toUpperCase()),
-    budget: z.number().min(0).max(1000000),
-  }).strict()).max(20).default([]),
+}).strict();
+
+const influencerCampaignSchema = z.object({
+  influencerName: z.string().trim().min(2).max(100),
+  promoCode: z.string().trim().min(2).max(50).transform((value) => value.toUpperCase()),
+  budget: z.number().min(0).max(1000000),
 }).strict();
 
 const campaignUpdateSchema = z.object({
@@ -80,7 +82,7 @@ export async function studioMutate(
   if (isUnsupportedStudioApi(clean)) {
     throw Object.assign(new Error("This feature is not available yet"), { status: 404 });
   }
-  const protectedWrite = clean.startsWith("customers/") || ["campaigns", "influencers", "referral", "loyalty", "widgets", "whatsapp"].some((prefix) => clean === prefix || clean.startsWith(`${prefix}/`));
+  const protectedWrite = clean.startsWith("customers/") || ["campaigns", "influencer-campaigns", "influencers", "referral", "loyalty", "widgets", "whatsapp"].some((prefix) => clean === prefix || clean.startsWith(`${prefix}/`));
   if (protectedWrite) {
     const subscription = await ensureSubscription(userId);
     if (effectiveSubscription(subscription.status, subscription.trialEndsAt, subscription.currentPeriodEndsAt) === "restricted") {
@@ -102,15 +104,6 @@ export async function studioMutate(
     const classification = classifyCustomers(rows);
     const audience = classification.members[segmentKey];
     const snapshot = snapshotAudience(audience, channels);
-    const influencerAssignments = [];
-    for (const entry of input.influencers) {
-      const influencer = await StudioInfluencer.findOneAndUpdate(
-        { user: userId, code: entry.promoCode },
-        { $set: { handle: entry.name, code: entry.promoCode }, $setOnInsert: { platform: "instagram", commissionPct: 0, paidOut: 0 } },
-        { new: true, upsert: true, setDefaultsOnInsert: true }
-      );
-      influencerAssignments.push({ influencer: influencer._id, name: entry.name, promoCode: entry.promoCode, budget: entry.budget });
-    }
     const campaign = await StudioCampaign.create({
       user: userId,
       name,
@@ -128,8 +121,6 @@ export async function studioMutate(
       scheduledAt: input.scheduledAt ? new Date(input.scheduledAt) : null,
       attributionDays: 14,
       audienceCount: audience.length,
-      budget: input.influencers.reduce((sum, entry) => sum + entry.budget, 0),
-      influencers: influencerAssignments,
     });
     const recipients = snapshot.recipients.map((recipient) => ({
       user: userId, campaign: campaign._id, customer: recipient.customerId,
@@ -184,6 +175,13 @@ export async function studioMutate(
       commissionPct: body.commissionPct,
     });
     return { influencer };
+  }
+
+  if (clean === "influencer-campaigns" && method === "POST") {
+    const parsed = influencerCampaignSchema.safeParse(body);
+    if (!parsed.success) throw Object.assign(new Error(parsed.error.issues[0]?.message || "Invalid influencer campaign"), { status: 400 });
+    const campaign = await StudioInfluencerCampaign.create({ user: userId, ...parsed.data });
+    return { campaign };
   }
 
   if (clean.match(/^influencers\/[^/]+\/payout$/) && method === "POST") {
@@ -271,7 +269,7 @@ export async function studioMutate(
       StudioLoyaltyTransaction.deleteMany({ user: userId }),
       StudioRewardRedemption.deleteMany({ user: userId }),
       StudioMessageOutbox.deleteMany({ user: userId }), StudioPaymentRecord.deleteMany({ user: userId }),
-      StudioCustomer.deleteMany({ user: userId }), StudioInfluencer.deleteMany({ user: userId }),
+      StudioCustomer.deleteMany({ user: userId }), StudioInfluencer.deleteMany({ user: userId }), StudioInfluencerCampaign.deleteMany({ user: userId }),
       StudioOrder.deleteMany({ user: userId }), StudioSubscription.deleteMany({ user: userId }),
       StudioConvertyConnection.deleteMany({ user: userId }),
     ]);
