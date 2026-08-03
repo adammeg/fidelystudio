@@ -1240,6 +1240,24 @@ tr,
   transform: translateY(-1px);
   box-shadow: 0 10px 24px -14px rgba(95, 54, 35, 0.65);
 }
+.converty-login {
+  min-height: 49px;
+  justify-content: center;
+  color: #fff;
+  background: #6f2dbd;
+  border-color: #6f2dbd;
+  box-shadow: 0 10px 22px -14px rgba(77, 25, 145, .8);
+}
+.converty-login:hover {
+  color: #fff;
+  background: #59229d;
+  border-color: #59229d;
+  box-shadow: 0 13px 28px -15px rgba(77, 25, 145, .9);
+}
+.converty-login:focus-visible { outline-color: rgba(111,45,189,.42); }
+.converty-mark-img { width: 25px !important; height: 25px !important; flex: 0 0 25px; border: 1px solid rgba(255,255,255,.24); border-radius: 6px; object-fit: cover; }
+.login-brand { min-height: 52px; }
+.login-brand img { width: 154px; height: auto; object-fit: contain; }
 .converty-mark {
   display: inline-flex;
   width: 22px;

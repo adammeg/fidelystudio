@@ -13,7 +13,7 @@ export default function DashboardShell({ shop, trial, children }: { shop: ShopIn
     <Sidebar shop={shop} onNavigate={() => setOpen(false)} />
     <main className="main">
       <div className="mobile-appbar">
-        <Image src="/complete-fidely-logo.png" width={112} height={36} alt="Fidely" priority />
+        <Image src="/complete-fidely-logo.png" width={112} height={38} alt="Fidely" priority unoptimized />
         <button className="mobile-menu" type="button" aria-label="Open navigation" aria-expanded={open} onClick={() => setOpen(true)}>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 7h16M4 12h16M4 17h16" /></svg>
         </button>

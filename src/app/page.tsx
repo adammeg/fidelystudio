@@ -12,7 +12,7 @@ export default function LandingPage() {
     <div className="landing">
       <header className="landing-nav">
         <Link className="landing-brand" href="/" aria-label="Fidely home">
-          <Image src="/complete-fidely-logo.png" width={132} height={43} alt="Fidely" priority />
+          <Image src="/complete-fidely-logo.png" width={132} height={45} alt="Fidely" priority unoptimized />
         </Link>
         <nav aria-label="Main navigation">
           <a href="#product">Product</a>

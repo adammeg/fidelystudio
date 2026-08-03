@@ -92,7 +92,7 @@ export default function Sidebar({ shop, onNavigate }: { shop: ShopInfo; onNaviga
   return (
     <aside className="sidebar" data-screen-label="Sidebar" aria-label="Main navigation">
       <div className="sb-brand">
-        <Image className="sb-wordmark" src="/complete-fidely-logo.png" width={139} height={45} alt="Fidely" priority />
+        <Image className="sb-wordmark" src="/complete-fidely-logo.png" width={139} height={47} alt="Fidely" priority unoptimized />
       </div>
 
       {mainNav.map((item) => {
