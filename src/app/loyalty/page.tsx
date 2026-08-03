@@ -4,6 +4,7 @@ import ConvertySyncCrumb from "@/components/studio/ConvertySyncCrumb";
 import { getLoyalty, getLoyaltyCustomers, getConvertyStatus } from "@/lib/studio";
 import { fmt, initials, avatarColor, tierChip, timeAgo, syncAgo } from "@/lib/format";
 import RewardRedeemer from "@/components/studio/RewardRedeemer";
+import RedemptionActions from "@/components/studio/RedemptionActions";
 
 const Check = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
@@ -14,7 +15,7 @@ const Check = () => (
 const loyaltyTabs = ["Program", "Rewards", "Customers", "Validation", "Points economy"];
 
 export default async function LoyaltyProgramPage() {
-  const [{ program, stats }, { customers }, converty] = await Promise.all([
+  const [{ program, stats, redemptions }, { customers }, converty] = await Promise.all([
     getLoyalty(),
     getLoyaltyCustomers(),
     getConvertyStatus().catch(() => null),
@@ -67,6 +68,7 @@ export default async function LoyaltyProgramPage() {
 
         {/* EARNING RULES + REWARDS (interactive) */}
         <LoyaltyManager program={program} />
+        <section className="panel" style={{ marginTop: 16 }}><div className="p-head"><div><h3>Gift redemptions</h3><div className="sub">Issue, fulfill, or cancel customer gifts with an audit trail</div></div></div>{redemptions.length ? <div className="table-scroll"><table className="dense"><thead><tr><th>Customer</th><th>Gift</th><th className="num">Points</th><th>Status</th><th>Date</th><th>Action</th></tr></thead><tbody>{redemptions.map((redemption) => <tr key={redemption.id}><td><b>{redemption.customer?.name || "Customer"}</b><div className="muted">{redemption.customer?.phone}</div></td><td>{redemption.rewardName}</td><td className="num">{redemption.pointsCost}</td><td>{redemption.status}</td><td>{new Date(redemption.createdAt).toLocaleDateString()}</td><td><RedemptionActions id={redemption.id} status={redemption.status} /></td></tr>)}</tbody></table></div> : <div className="empty-state"><p>No gifts issued yet.</p></div>}</section>
 
         {/* STATUSES + VALIDATION */}
         <div className="block grid-12">

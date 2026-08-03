@@ -4,7 +4,7 @@ import type { NextRequest } from "next/server";
 const SESSION_COOKIE = "fidely_session";
 
 // Routes that never require auth.
-const PUBLIC_PATHS = ["/", "/login"];
+const PUBLIC_PATHS = ["/", "/login", "/privacy", "/terms", "/acceptable-use"];
 const HIDDEN_FEATURE_PATHS = ["/influence", "/widgets"];
 
 export function proxy(req: NextRequest) {

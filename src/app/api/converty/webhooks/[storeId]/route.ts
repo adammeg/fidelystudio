@@ -3,6 +3,7 @@ import { connectDatabase } from "@/server/db";
 import { StudioConvertyConnection } from "@/server/models";
 import { syncOrder } from "@/server/converty-sync";
 import { sha256 } from "@/server/security";
+import { completeWebhookEvent, registerWebhookEvent, releaseWebhookEvent } from "@/server/webhooks";
 
 export async function POST(
   req: NextRequest,
@@ -16,7 +17,11 @@ export async function POST(
   if (!connection) {
     return NextResponse.json({ success: false, message: "Store not connected" }, { status: 404 });
   }
-  const body = await req.json().catch(() => null);
+  const rawBody = await req.text();
+  let body;
+  try { body = JSON.parse(rawBody || "null"); } catch { return NextResponse.json({ success: false, message: "Invalid JSON" }, { status: 400 }); }
+  const registration = await registerWebhookEvent("converty", req, rawBody);
+  if (registration.duplicate) return NextResponse.json({ success: true, duplicate: true });
   const event = body?.event || "order.update";
   if (!["order.create", "order.update"].includes(event)) {
     return NextResponse.json({ success: false, message: "Unsupported event" }, { status: 400 });
@@ -25,10 +30,12 @@ export async function POST(
   try {
     const synced = await syncOrder(String(connection.user), order, true);
     await StudioConvertyConnection.updateOne({ _id: connection._id }, { $set: { lastWebhookAt: new Date(), lastWebhookError: null } });
+    await completeWebhookEvent(registration.id);
     return NextResponse.json({ success: true, synced });
   } catch (error) {
     const message = error instanceof Error ? error.message.slice(0, 500) : "Webhook processing failed";
     await StudioConvertyConnection.updateOne({ _id: connection._id }, { $set: { lastWebhookError: message } });
+    await releaseWebhookEvent(registration.id);
     return NextResponse.json({ success: false, message: "Webhook processing failed" }, { status: 500 });
   }
 }

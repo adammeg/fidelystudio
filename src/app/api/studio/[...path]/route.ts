@@ -36,10 +36,21 @@ export async function GET(req: NextRequest, context: Context) {
       return NextResponse.json({ url: "/api/auth/converty/start" });
     }
     if (endpoint === "customers/export") {
-      const data = await studioGet(user, "customers", req.nextUrl.searchParams) as {
+      const params = new URLSearchParams(req.nextUrl.searchParams);
+      params.set("limit", "200");
+      params.set("page", "1");
+      let data = await studioGet(user, "customers", params) as {
         customers: Array<Record<string, unknown>>;
         currency: string;
+        pages: number;
       };
+      const allCustomers = [...data.customers];
+      for (let page = 2; page <= data.pages; page += 1) {
+        params.set("page", String(page));
+        const next = await studioGet(user, "customers", params) as typeof data;
+        allCustomers.push(...next.customers);
+      }
+      data = { ...data, customers: allCustomers };
       const headers = ["Name", "Phone", "Email", "Source", "Placed", "Delivered", "Refused", `Revenue (${data.currency})`, "Points", "Tier", "First delivered", "Last delivered"];
       const rows = data.customers.map((customer) => [
         customer.name, customer.phone, customer.email,

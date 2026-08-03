@@ -114,7 +114,7 @@ export async function syncOrder(userId: string, order: ConvertyOrder, notifyCust
       paymentStatus: order.paymentStatus || null,
       amount: order.total?.totalPrice || 0,
       cost: productCost + (order.total?.deliveryCost || 0),
-      raw: order,
+      raw: { cart: order.cart || [] },
       placedAt,
       deliveredAt: delivered,
       sourceUpdatedAt: incomingUpdatedAt,
@@ -125,34 +125,39 @@ export async function syncOrder(userId: string, order: ConvertyOrder, notifyCust
   if (updated) {
     const reward = await reconcileOrderRewards(userId, String(updated._id));
     if (notifyCustomer && reward.credited > 0) {
-      try { await sendDeliveryPointsUpdate(userId, String(customer._id), reward.credited); }
+      try { await sendDeliveryPointsUpdate(userId, String(customer._id), reward.credited, String(updated._id)); }
       catch { /* Loyalty accounting must succeed even when WhatsApp is temporarily unavailable. */ }
     }
   }
   return Boolean(updated);
 }
 
-export async function syncOrdersForUser(userId: string, maxPages = 20) {
+export async function syncOrdersForUser(userId: string, pageLimit = 2) {
   const connection = await StudioConvertyConnection.findOne({ user: userId });
   if (!connection) throw new Error("Converty is not connected");
   connection.lastSyncStartedAt = new Date();
   connection.lastSyncError = null;
   await connection.save();
   let synced = 0;
+  let complete = false;
+  const firstPage = Math.max(1, connection.syncNextPage || 1);
   try {
-    for (let page = 1; page <= maxPages; page += 1) {
+    const retentionDays = Math.max(30, Number(process.env.ORDER_RAW_RETENTION_DAYS) || 90);
+    await StudioOrder.updateMany({ user: userId, updatedAt: { $lt: new Date(Date.now() - retentionDays * 86_400_000) } }, { $unset: { raw: 1 } });
+    for (let page = firstPage; page < firstPage + Math.min(5, Math.max(1, pageLimit)); page += 1) {
       const result = await withRetries(() => convertyApi<{ data?: ConvertyOrder[] }>(
         connection as ConnectionDocument, `/orders?page=${page}&limit=200`
       ));
       const orders = result.data || [];
       for (const order of orders) if (await syncOrder(userId, order)) synced += 1;
-      if (orders.length < 200) break;
+      connection.syncNextPage = page + 1;
+      if (orders.length < 200) { complete = true; connection.syncNextPage = 1; break; }
     }
-    connection.lastSyncAt = new Date();
-    connection.lastSyncOrderCount = synced;
+    if (complete) connection.lastSyncAt = new Date();
+    connection.lastSyncOrderCount = (firstPage === 1 ? 0 : connection.lastSyncOrderCount || 0) + synced;
     connection.lastSyncError = null;
     await connection.save();
-    return { synced, lastSyncAt: connection.lastSyncAt };
+    return { synced, totalSynced: connection.lastSyncOrderCount, complete, nextPage: connection.syncNextPage, lastSyncAt: connection.lastSyncAt };
   } catch (error) {
     connection.lastSyncError = error instanceof Error ? error.message.slice(0, 500) : "Synchronization failed";
     await connection.save();

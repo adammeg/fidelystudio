@@ -3,7 +3,7 @@ import { effectiveSubscription, FIDELY_ENTITLEMENTS, FIDELY_MONTHLY_PRICE } from
 
 describe("SaaS plan entitlements", () => {
   it("keeps active subscriptions enabled", () => {
-    expect(effectiveSubscription("active", new Date(0))).toBe("active");
+    expect(effectiveSubscription("active", new Date(0), new Date(Date.now() + 86_400_000))).toBe("active");
   });
 
   it("allows seven-day trials and restricts them after expiry", () => {

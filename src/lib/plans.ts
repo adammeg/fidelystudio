@@ -8,8 +8,8 @@ export const FIDELY_ENTITLEMENTS = {
   teamMembers: 1,
 } as const;
 
-export function effectiveSubscription(status: string, trialEndsAt: Date | string) {
-  if (status === "active") return "active" as const;
+export function effectiveSubscription(status: string, trialEndsAt: Date | string, currentPeriodEndsAt?: Date | string | null) {
+  if (status === "active" && currentPeriodEndsAt && new Date(currentPeriodEndsAt).getTime() > Date.now()) return "active" as const;
   if (status === "trialing" && new Date(trialEndsAt).getTime() > Date.now()) return "trialing" as const;
   return "restricted" as const;
 }

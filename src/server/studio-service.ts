@@ -37,8 +37,8 @@ export const loyaltyDefaults = {
     { name: "First purchase", icon: "gift", points: 50, perAmount: 0, note: "First delivered order", active: true },
   ],
   rewards: [
-    { name: "10 TND voucher", icon: "voucher", cost: 100, note: "On the next order", active: true, redeemed: 0 },
-    { name: "Free delivery", icon: "delivery", cost: 150, note: "One delivery", active: true, redeemed: 0 },
+    { id: "voucher-10", name: "10 TND voucher", icon: "voucher", cost: 100, note: "On the next order", active: true, redeemed: 0 },
+    { id: "free-delivery", name: "Free delivery", icon: "delivery", cost: 150, note: "One delivery", active: true, redeemed: 0 },
   ],
   tiers: [
     { name: "Member", threshold: 0, basis: "points", perk: null },
@@ -98,44 +98,55 @@ async function config(userId: string, key: string, defaults: object) {
   return record!.data;
 }
 
-export async function customerRows(userId: string) {
-  const [customers, orders] = await Promise.all([
-    StudioCustomer.find({ user: userId }).sort({ updatedAt: -1 }).lean(),
-    StudioOrder.find({ user: userId }).lean(),
+export type CustomerAnalyticsRow = {
+  id: string; name: string; phone: string; email: string | null; source: { type?: string; [key: string]: unknown };
+  marketingConsent: { whatsapp: boolean; sms: boolean; email: boolean }; lastMessagedAt: Date | null;
+  marketingConsentEvidence?: { whatsapp?: { source?: string | null; recordedAt?: Date | null; note?: string | null } };
+  points: number; tier: string; placed: number; delivered: number; refused: number; spent: number;
+  lastDeliveredAt: Date | null; firstDeliveredAt: Date | null; createdAt: Date;
+};
+
+export async function customerRowsForUsers(userIds: string[]) {
+  const objectIds = userIds.filter(mongoose.isValidObjectId).map((value) => new mongoose.Types.ObjectId(value));
+  const [customers, metrics, deliveryDates] = await Promise.all([
+    StudioCustomer.find({ user: { $in: objectIds } }).sort({ updatedAt: -1 }).lean(),
+    StudioOrder.aggregate([{ $match: { user: { $in: objectIds } } }, { $group: { _id: { user: "$user", customer: "$customer" }, placed: { $sum: 1 }, delivered: { $sum: { $cond: [{ $eq: ["$status", "delivered"] }, 1, 0] } }, refused: { $sum: { $cond: [{ $in: ["$status", ["refused", "returned", "cancelled", "rejected"]] }, 1, 0] } }, spent: { $sum: { $cond: [{ $eq: ["$status", "delivered"] }, "$amount", 0] } } } }]),
+    StudioOrder.aggregate([{ $match: { user: { $in: objectIds }, status: "delivered", deliveredAt: { $ne: null } } }, { $group: { _id: { user: "$user", customer: "$customer" }, firstDeliveredAt: { $min: "$deliveredAt" }, lastDeliveredAt: { $max: "$deliveredAt" } } }]),
   ]);
-  return customers.map((customer) => {
-    const related = orders.filter((order) => id(order.customer) === id(customer._id));
-    const delivered = related.filter((order) => order.status === "delivered");
-    const refused = related.filter((order) =>
-      ["refused", "returned", "cancelled", "rejected"].includes(order.status)
-    );
-    const latestDeliveredAt = delivered.reduce<Date | null>((latest, order) => {
-      const value = order.deliveredAt ? new Date(order.deliveredAt) : null;
-      return value && (!latest || value > latest) ? value : latest;
-    }, null);
-    const firstDeliveredAt = delivered.reduce<Date | null>((first, order) => {
-      const value = order.deliveredAt ? new Date(order.deliveredAt) : null;
-      return value && (!first || value < first) ? value : first;
-    }, null);
-    return {
+  const key = (user: unknown, customer: unknown) => `${id(user)}:${id(customer)}`;
+  const metricMap = new Map(metrics.map((row) => [key(row._id.user, row._id.customer), row]));
+  const dateMap = new Map(deliveryDates.map((row) => [key(row._id.user, row._id.customer), row]));
+  const byUser = new Map<string, CustomerAnalyticsRow[]>();
+  for (const customer of customers) {
+    const metric = metricMap.get(key(customer.user, customer._id));
+    const dates = dateMap.get(key(customer.user, customer._id));
+    const row: CustomerAnalyticsRow = {
       id: id(customer._id),
       name: customer.name,
       phone: customer.phone,
       email: customer.email || null,
-      source: customer.source || { type: "direct" },
-      marketingConsent: customer.marketingConsent || { whatsapp: false, sms: false, email: false },
+      source: (customer.source || { type: "direct" }) as CustomerAnalyticsRow["source"],
+      marketingConsent: (customer.marketingConsent || { whatsapp: false, sms: false, email: false }) as CustomerAnalyticsRow["marketingConsent"],
+      marketingConsentEvidence: customer.marketingConsentEvidence || undefined,
       lastMessagedAt: customer.lastMessagedAt || null,
       points: customer.points || 0,
       tier: customer.tier || "Member",
-      placed: related.length,
-      delivered: delivered.length,
-      refused: refused.length,
-      spent: Math.round(delivered.reduce((sum, order) => sum + (order.amount || 0), 0)),
-      lastDeliveredAt: latestDeliveredAt,
-      firstDeliveredAt,
-      createdAt: customer.createdAt,
+      placed: metric?.placed || 0,
+      delivered: metric?.delivered || 0,
+      refused: metric?.refused || 0,
+      spent: Math.round(metric?.spent || 0),
+      lastDeliveredAt: dates?.lastDeliveredAt || null,
+      firstDeliveredAt: dates?.firstDeliveredAt || null,
+      createdAt: new Date(customer.createdAt),
     };
-  });
+    const userKey = id(customer.user);
+    byUser.set(userKey, [...(byUser.get(userKey) || []), row]);
+  }
+  return byUser;
+}
+
+export async function customerRows(userId: string) {
+  return (await customerRowsForUsers([userId])).get(userId) || [];
 }
 
 type CampaignRecord = {
@@ -158,7 +169,7 @@ type CampaignRecord = {
   segmentKey?: string | null;
 };
 
-function campaignJson(campaign: CampaignRecord) {
+function campaignJson(campaign: CampaignRecord, metrics: { placed?: number; delivered?: number; earned?: number; spent?: number } = {}) {
   return {
     id: id(campaign._id),
     name: campaign.name,
@@ -178,12 +189,12 @@ function campaignJson(campaign: CampaignRecord) {
     channels: campaign.channels || ["whatsapp"],
     segmentKey: campaign.segmentKey || null,
     influencers: [],
-    placed: 0,
-    delivered: 0,
-    deliveredPct: 0,
-    earned: 0,
-    spent: 0,
-    result: { label: "Needs data", level: "nd" },
+    placed: metrics.placed || 0,
+    delivered: metrics.delivered || 0,
+    deliveredPct: metrics.placed ? Math.round(((metrics.delivered || 0) / metrics.placed) * 100) : 0,
+    earned: metrics.earned || 0,
+    spent: metrics.spent || 0,
+    result: metrics.delivered ? { label: "Delivered revenue", level: "pr" } : { label: "No attributed orders", level: "nd" },
   };
 }
 
@@ -192,6 +203,10 @@ export async function studioGet(userId: string, path: string, search = new URLSe
   const clean = path.replace(/^\/+|\/+$/g, "");
   if (isUnsupportedStudioApi(clean)) {
     throw Object.assign(new Error("This feature is not available yet"), { status: 404 });
+  }
+  if (!["account", "account/export"].includes(clean)) {
+    const subscription = await ensureSubscription(userId);
+    if (effectiveSubscription(subscription.status, subscription.trialEndsAt, subscription.currentPeriodEndsAt) === "restricted") throw Object.assign(new Error("Your trial or subscription has expired"), { status: 402 });
   }
 
   if (clean === "converty/status") {
@@ -251,7 +266,7 @@ export async function studioGet(userId: string, path: string, search = new URLSe
       profile: { email: user.email || "", shopName: user.shopName, ownerName: user.ownerName || "", currency: connection?.currency || user.currency || "TND" },
       subscription: {
         plan: "fidely", price: FIDELY_MONTHLY_PRICE,
-        status: effectiveSubscription(subscription.status, subscription.trialEndsAt),
+        status: effectiveSubscription(subscription.status, subscription.trialEndsAt, subscription.currentPeriodEndsAt),
         rawStatus: subscription.status, trialEndsAt: subscription.trialEndsAt,
         currentPeriodEndsAt: subscription.currentPeriodEndsAt || null,
         entitlements: FIDELY_ENTITLEMENTS, customerCount,
@@ -303,8 +318,12 @@ export async function studioGet(userId: string, path: string, search = new URLSe
       const byCustomer = new Map(activity.map((item) => [String(item._id), item]));
       rows = rows.map((row) => ({ ...row, loyalty: byCustomer.get(row.id) || { earned: 0, redeemed: 0, lastActivityAt: null } }));
     }
+    const total = rows.length;
+    const page = Math.max(1, Number(search.get("page")) || 1);
+    const limit = Math.min(200, Math.max(1, Number(search.get("limit")) || 50));
+    rows = rows.slice((page - 1) * limit, page * limit);
     const connection = await StudioConvertyConnection.findOne({ user: userId }).select("currency").lean();
-    return { customers: rows, total: rows.length, currency: connection?.currency || "TND" };
+    return { customers: rows, total, page, limit, pages: Math.ceil(total / limit), currency: connection?.currency || "TND" };
   }
 
   if (clean.startsWith("customers/")) {
@@ -355,7 +374,9 @@ export async function studioGet(userId: string, path: string, search = new URLSe
 
   if (clean === "campaigns") {
     const campaigns = await StudioCampaign.find({ user: userId }).sort({ createdAt: -1 }).lean();
-    return { campaigns: campaigns.map(campaignJson) };
+    const metrics = await StudioOrder.aggregate([{ $match: { user: new mongoose.Types.ObjectId(userId), attributedCampaign: { $ne: null } } }, { $group: { _id: "$attributedCampaign", placed: { $sum: 1 }, delivered: { $sum: { $cond: [{ $eq: ["$status", "delivered"] }, 1, 0] } }, earned: { $sum: { $cond: [{ $eq: ["$status", "delivered"] }, "$amount", 0] } }, spent: { $sum: { $cond: [{ $eq: ["$status", "delivered"] }, "$cost", 0] } } } }]);
+    const byCampaign = new Map(metrics.map((item) => [id(item._id), item]));
+    return { campaigns: campaigns.map((campaign) => campaignJson(campaign, byCampaign.get(id(campaign._id)))) };
   }
   if (clean.startsWith("campaigns/")) {
     const campaign = await StudioCampaign.findOne({ user: userId, slug: clean.slice(10) }).lean();
@@ -363,10 +384,12 @@ export async function studioGet(userId: string, path: string, search = new URLSe
     const recipientCounts = await StudioCampaignRecipient.aggregate([
       { $match: { campaign: campaign._id } }, { $group: { _id: "$status", count: { $sum: 1 } } },
     ]);
+    const [orderTotals] = await StudioOrder.aggregate([{ $match: { user: new mongoose.Types.ObjectId(userId), attributedCampaign: campaign._id } }, { $group: { _id: null, placed: { $sum: 1 }, delivered: { $sum: { $cond: [{ $eq: ["$status", "delivered"] }, 1, 0] } }, earned: { $sum: { $cond: [{ $eq: ["$status", "delivered"] }, "$amount", 0] } }, spent: { $sum: { $cond: [{ $eq: ["$status", "delivered"] }, "$cost", 0] } } } }]);
+    const totals = orderTotals || { placed: 0, delivered: 0, earned: 0, spent: 0 };
     return {
-      campaign: campaignJson(campaign),
+      campaign: campaignJson(campaign, totals),
       recipients: Object.fromEntries(recipientCounts.map((row) => [row._id, row.count])),
-      totals: { placed: 0, delivered: 0, deliveredPct: 0, earned: 0, spent: 0 },
+      totals: { ...totals, deliveredPct: totals.placed ? Math.round((totals.delivered / totals.placed) * 100) : 0 },
       influencers: [],
     };
   }
@@ -396,8 +419,9 @@ export async function studioGet(userId: string, path: string, search = new URLSe
   if (clean === "referral") return { program: await config(userId, "referral", referralDefaults), stats: { totalReferrals: 0, rewarded: 0, pending: 0, revenue: 0, deliveredOrders: 0, conversionPct: 0 } };
   if (clean === "loyalty") {
     const customers = await customerRows(userId);
-    const [program, redemptionCount, transactionCount] = await Promise.all([config(userId, "loyalty", loyaltyDefaults), StudioRewardRedemption.countDocuments({ user: userId }), StudioLoyaltyTransaction.countDocuments({ user: userId })]);
-    return { program, stats: { members: customers.filter((c) => c.points > 0).length, pointsOutstanding: customers.reduce((sum, c) => sum + c.points, 0), redemptions: redemptionCount, transactions: transactionCount } };
+    const [rawProgram, redemptionCount, transactionCount, recentRedemptions] = await Promise.all([config(userId, "loyalty", loyaltyDefaults), StudioRewardRedemption.countDocuments({ user: userId }), StudioLoyaltyTransaction.countDocuments({ user: userId }), StudioRewardRedemption.find({ user: userId }).sort({ createdAt: -1 }).limit(50).populate("customer", "name phone").lean()]);
+    const program = { ...rawProgram, rewards: (rawProgram.rewards || []).map((reward: { id?: string; name: string }, index: number) => ({ ...reward, id: reward.id || `legacy-${index}-${reward.name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}` })) };
+    return { program, redemptions: recentRedemptions.map((item) => ({ id: id(item._id), rewardName: item.rewardName, pointsCost: item.pointsCost, status: item.status, createdAt: item.createdAt, customer: item.customer })), stats: { members: customers.filter((c) => c.points > 0).length, pointsOutstanding: customers.reduce((sum, c) => sum + c.points, 0), redemptions: redemptionCount, transactions: transactionCount } };
   }
   if (clean === "widgets") return { config: await config(userId, "widgets", widgetDefaults) };
 
@@ -505,7 +529,7 @@ export async function studioGet(userId: string, path: string, search = new URLSe
         attributionDays: 14,
         deliveryRate: orders.length ? Math.round((deliveredSeries.total / orders.length) * 100) : 0,
       },
-      topCampaigns: campaigns.map(campaignJson),
+      topCampaigns: campaigns.map((campaign) => campaignJson(campaign)),
       topInfluencers: [],
       segments,
       topRewards: [],

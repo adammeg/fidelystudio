@@ -6,7 +6,7 @@ import { fmt, initials, avatarColor, timeAgo } from "@/lib/format";
 
 const segmentLabels: Record<string, string> = { vip: "VIP", atRisk: "At risk", dormant: "Dormant", highBasket: "High basket", closeReward: "Close to reward", influencerAcquired: "Influencer" };
 
-export default async function CustomersPage({ searchParams }: { searchParams: Promise<{ q?: string; segment?: string; source?: string; from?: string; to?: string }> }) {
+export default async function CustomersPage({ searchParams }: { searchParams: Promise<{ q?: string; segment?: string; source?: string; from?: string; to?: string; page?: string }> }) {
   const sp = await searchParams;
   const qs = new URLSearchParams({ limit: "100" });
   if (sp.q) qs.set("q", sp.q);
@@ -14,7 +14,8 @@ export default async function CustomersPage({ searchParams }: { searchParams: Pr
   if (sp.source) qs.set("source", sp.source);
   if (sp.from) qs.set("from", sp.from);
   if (sp.to) qs.set("to", sp.to);
-  const [{ customers, currency }, segments, cohorts] = await Promise.all([
+  if (sp.page) qs.set("page", sp.page);
+  const [{ customers, currency, total: filteredTotal, page, pages }, segments, cohorts] = await Promise.all([
     getCustomers(`?${qs}`), getSegments(), getCohorts(),
   ]);
   const total = cohorts.bySource.reduce((sum, row) => sum + row.customers, 0);
@@ -30,7 +31,7 @@ export default async function CustomersPage({ searchParams }: { searchParams: Pr
     <div className="has-tabbar">
       <header className="topbar">
         <div><ConvertySyncCrumb className="crumb" /><h1>Customers</h1>
-          <div className="subt">People identified from your real Converty orders.</div>
+          <div className="subt">Customers identified from your synced store orders.</div>
         </div>
       </header>
       <Tabbar tabs={tabs} />
@@ -63,7 +64,7 @@ export default async function CustomersPage({ searchParams }: { searchParams: Pr
               <a className="btn btn-secondary" href={`/api/studio/customers/export?${qs}`}>Export CSV</a>
             </form>
           </div>
-          <div className="panel">
+          <div className="panel customer-results">
             {customers.length ? (
               <div className="table-scroll"><table className="dense customer-table">
                 <thead><tr><th>Customer</th><th>Segments</th><th>Phone</th><th className="num">Placed</th><th className="num">Delivered</th><th className="num">Refused</th><th className="num">Revenue</th><th>Last delivered</th><th /></tr></thead>
@@ -85,7 +86,15 @@ export default async function CustomersPage({ searchParams }: { searchParams: Pr
                 {!sp.q && <Link href="/settings" className="btn btn-primary">Connect Converty</Link>}
               </div>
             )}
+            {!!customers.length && <div className="customer-mobile-list">{customers.map((customer) => (
+              <article className="customer-mobile-card" key={customer.id}>
+                <div className="customer-mobile-head"><div className="who-cell"><span className="av" style={{ background: avatarColor(customer.id) }}>{initials(customer.name)}</span><span><span className="h">{customer.name}</span><small>{customer.phone}</small></span></div><Link href={`/customers/${customer.id}`} className="btn btn-secondary btn-sm">View</Link></div>
+                <div className="tag-wrap">{customer.segments.length ? customer.segments.map((segment) => <span className="tag-pill" key={segment}>{segmentLabels[segment]}</span>) : <span className="tag-pill">Standard</span>}</div>
+                <dl><div><dt>Delivered</dt><dd>{customer.delivered}</dd></div><div><dt>Revenue</dt><dd>{fmt(customer.spent)} {currency}</dd></div><div><dt>Last delivery</dt><dd>{timeAgo(customer.lastDeliveredAt)}</dd></div></dl>
+              </article>
+            ))}</div>}
           </div>
+          {pages > 1 && <div className="pager"><div className="info">Showing {customers.length} of {filteredTotal} matching customers</div><div style={{ display: "flex", gap: 8 }}>{page > 1 && <Link className="btn btn-secondary btn-sm" href={`/customers?${new URLSearchParams({ ...Object.fromEntries(qs), page: String(page - 1) })}`}>Previous</Link>}{page < pages && <Link className="btn btn-secondary btn-sm" href={`/customers?${new URLSearchParams({ ...Object.fromEntries(qs), page: String(page + 1) })}`}>Next</Link>}</div></div>}
         </section>
       </div>
     </div>

@@ -1,0 +1,4 @@
+"use client";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+export default function RedemptionActions({ id, status }: { id: string; status: string }) { const router = useRouter(); const [busy, setBusy] = useState(false); async function act(action: "fulfill" | "cancel") { setBusy(true); const response = await fetch(`/api/studio/loyalty/redemptions/${id}/${action}`, { method: "POST" }); setBusy(false); if (response.ok) router.refresh(); } if (status !== "issued") return <span className="muted">{status}</span>; return <div style={{ display: "flex", gap: 6 }}><button className="btn btn-primary btn-sm" disabled={busy} onClick={() => act("fulfill")}>Fulfill</button><button className="btn btn-secondary btn-sm" disabled={busy} onClick={() => act("cancel")}>Cancel</button></div>; }

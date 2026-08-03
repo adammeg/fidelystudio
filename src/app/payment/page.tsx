@@ -7,7 +7,7 @@ export default async function PaymentPage() {
   const user = await getSessionUser();
   if (user.role === "admin") redirect("/admin");
   const subscription = await ensureSubscription(user.id);
-  if (effectiveSubscription(subscription.status, subscription.trialEndsAt) !== "restricted") redirect("/settings");
+  if (effectiveSubscription(subscription.status, subscription.trialEndsAt, subscription.currentPeriodEndsAt) !== "restricted") redirect("/settings");
   const confirmation = encodeURIComponent(`Hello, I paid the Fidely subscription for ${user.shopName || user.email || "my shop"}. Please confirm and activate my account.`);
   return <main style={{ minHeight: "100vh", display: "grid", placeItems: "center", padding: 20, background: "var(--bg-sunken)" }}>
     <section className="panel" style={{ width: "min(100%, 650px)", padding: 28 }}>

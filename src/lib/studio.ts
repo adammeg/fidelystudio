@@ -136,6 +136,7 @@ export interface ApiCustomer {
   email: string | null;
   source: ApiSource;
   marketingConsent: { whatsapp: boolean; sms: boolean; email: boolean };
+  marketingConsentEvidence?: { whatsapp?: { source?: string | null; recordedAt?: string | null; note?: string | null } };
   points: number;
   tier: string;
   placed: number;
@@ -184,13 +185,14 @@ export interface ReferralData {
 export interface LoyaltyProgram {
   enabled: boolean;
   earnRules: { name: string; icon: string; points: number; perAmount: number; note: string | null; active: boolean }[];
-  rewards: { _id?: string; name: string; icon: string; cost: number; note: string | null; active: boolean; redeemed: number }[];
+  rewards: { id: string; name: string; icon: string; cost: number; note: string | null; active: boolean; redeemed: number }[];
   tiers: { name: string; threshold: number; basis: string; perk: string | null }[];
   pointExpiryDays: number;
 }
 
 export interface LoyaltyData {
   program: LoyaltyProgram;
+  redemptions: { id: string; rewardName: string; pointsCost: number; status: string; createdAt: string; customer: { name?: string; phone?: string } }[];
   stats: { members: number; pointsOutstanding: number; redemptions: number; transactions: number };
 }
 
@@ -242,7 +244,7 @@ export const getCampaign = (slug: string) =>
     `/studio/campaigns/${encodeURIComponent(slug)}`
   );
 export const getReferral = () => get<ReferralData>("/studio/referral");
-export const getCustomers = (qs = "") => get<{ customers: ApiCustomer[]; currency: string }>(`/studio/customers${qs}`);
+export const getCustomers = (qs = "") => get<{ customers: ApiCustomer[]; currency: string; total: number; page: number; limit: number; pages: number }>(`/studio/customers${qs}`);
 export const getCustomer = (id: string) => get<CustomerDetail>(`/studio/customers/${encodeURIComponent(id)}`);
 export const getSegments = () => get<ApiSegments>("/studio/segments");
 export const getCohorts = (qs = "") => get<CohortsData>(`/studio/cohorts${qs}`);

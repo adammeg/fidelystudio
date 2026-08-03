@@ -14,7 +14,7 @@ import {
 } from "@/server/converty";
 import { createSession, SESSION_COOKIE } from "@/server/auth";
 import { decryptSecret, encryptSecret, randomToken, sha256 } from "@/server/security";
-import { setupWebhooksForUser, syncOrdersForUser } from "@/server/converty-sync";
+import { setupWebhooksForUser } from "@/server/converty-sync";
 import { ensureSubscription } from "@/server/subscriptions";
 
 const appUrl = (path: string) =>
@@ -95,15 +95,6 @@ export async function GET(req: NextRequest) {
     const destination = appUrl("/settings?converty=connected&trial=started");
     const setupMessages: string[] = [];
     try {
-      await syncOrdersForUser(String(user._id));
-    } catch (syncError) {
-      setupMessages.push(
-        syncError instanceof Error
-          ? `Initial order sync needs attention: ${syncError.message}`
-          : "Initial order sync needs attention."
-      );
-    }
-    try {
       await setupWebhooksForUser(String(user._id));
     } catch (setupError) {
       setupMessages.push(
@@ -118,6 +109,7 @@ export async function GET(req: NextRequest) {
         `Connected. ${setupMessages.join(" ")}`
       );
     }
+    else destination.searchParams.set("message", "Connected. Start the resumable order import from Settings.");
     const res = NextResponse.redirect(destination);
     res.cookies.set(SESSION_COOKIE, session, {
       httpOnly: true,

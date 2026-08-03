@@ -33,8 +33,8 @@ export function saveCustomerNote(customerId: string, note: string) {
   return mutate(`customers/${customerId}`, "PUT", { note: note || null });
 }
 
-export function saveCustomerConsent(customerId: string, marketingConsent: { whatsapp: boolean; sms: boolean; email: boolean }) {
-  return mutate(`customers/${customerId}`, "PUT", { marketingConsent });
+export function saveCustomerConsent(customerId: string, marketingConsent: { whatsapp: boolean; sms: boolean; email: boolean }, source: string, note: string) {
+  return mutate(`customers/${customerId}`, "PUT", { marketingConsent, marketingConsentEvidence: { whatsapp: { source, recordedAt: new Date().toISOString(), note: note || null } } });
 }
 
 export function setupConvertyWebhooks() {

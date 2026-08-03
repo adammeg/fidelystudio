@@ -42,12 +42,12 @@ export default function AccountManager({ account }: { account: AccountData }) {
       <div className="stat-list">{checklist.map(([label, done]) => <div className="stat-row" key={label}><span>{label}</span><b>{done ? "Complete" : "Required"}</b></div>)}</div>
     </div>
     <div className="panel" style={{ marginTop: 16 }}>
-      <div className="p-head"><div><h3>Plan and usage</h3><div className="sub">Billing activates after Stripe products are configured.</div></div><span className="status-pill live">{account.subscription.status}</span></div>
+      <div className="p-head"><div><h3>Plan and usage</h3><div className="sub">7-day free trial, then manual payment verification at 49 DT/month.</div></div><span className="status-pill live">{account.subscription.status}</span></div>
       <div className="stat-list">
         <div className="stat-row"><span>Subscription</span><b>Fidely · {account.subscription.price.amount} DT / month</b></div>
         <div className="stat-row"><span>Customers</span><b>{account.subscription.customerCount.toLocaleString()} / {limit === Number.MAX_SAFE_INTEGER ? "Unlimited" : limit.toLocaleString()}</b></div>
         <div className="stat-row"><span>Trial ends</span><b>{new Date(account.subscription.trialEndsAt).toLocaleDateString()}</b></div>
-        <div className="stat-row"><span>Billing</span><b>{account.subscription.billingConfigured ? "Configured" : "Not configured"}</b></div>
+        <div className="stat-row"><span>Payment</span><b>Manual BTE / Flouci verification</b></div>
       </div>
     </div>
     <div className="panel" style={{ marginTop: 16 }}>

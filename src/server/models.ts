@@ -53,6 +53,7 @@ const ConvertyConnectionSchema = new Schema(
     lastSyncStartedAt: { type: Date, default: null },
     lastSyncError: { type: String, default: null },
     lastSyncOrderCount: { type: Number, default: 0 },
+    syncNextPage: { type: Number, default: 1 },
     lastWebhookAt: { type: Date, default: null },
     lastWebhookError: { type: String, default: null },
     connectedAt: { type: Date, default: Date.now },
@@ -92,6 +93,13 @@ const CustomerSchema = new Schema(
       whatsapp: { type: Boolean, default: false },
       sms: { type: Boolean, default: false },
       email: { type: Boolean, default: false },
+    },
+    marketingConsentEvidence: {
+      whatsapp: {
+        source: { type: String, enum: ["checkout", "written", "verbal", "imported", "other"], default: null },
+        recordedAt: { type: Date, default: null },
+        note: { type: String, default: null },
+      },
     },
     lastMessagedAt: { type: Date, default: null },
   },
@@ -151,11 +159,12 @@ const CampaignRecipientSchema = new Schema(
     customer: { type: Schema.Types.ObjectId, ref: "StudioCustomer", required: true, index: true },
     channel: { type: String, enum: ["whatsapp"], required: true },
     destination: { type: String, required: true },
-    status: { type: String, enum: ["queued", "excluded_consent", "excluded_frequency", "sent", "delivered", "failed"], required: true },
+    status: { type: String, enum: ["queued", "sending", "excluded_consent", "excluded_frequency", "sent", "delivered", "failed"], required: true },
     providerMessageId: { type: String, default: null },
     sentAt: { type: Date, default: null },
     deliveredAt: { type: Date, default: null },
     failureReason: { type: String, default: null },
+    sendClaimedAt: { type: Date, default: null },
   },
   { timestamps: true }
 );
@@ -182,7 +191,9 @@ const RewardRedemptionSchema = new Schema(
     user: { type: Schema.Types.ObjectId, ref: "StudioUser", required: true, index: true },
     customer: { type: Schema.Types.ObjectId, ref: "StudioCustomer", required: true, index: true },
     transaction: { type: Schema.Types.ObjectId, ref: "StudioLoyaltyTransaction", required: true, unique: true },
+    cancellationTransaction: { type: Schema.Types.ObjectId, ref: "StudioLoyaltyTransaction", default: null },
     rewardName: { type: String, required: true },
+    rewardId: { type: String, required: true },
     pointsCost: { type: Number, required: true },
     status: { type: String, enum: ["issued", "fulfilled", "cancelled"], default: "issued" },
     fulfilledAt: { type: Date, default: null },
@@ -237,6 +248,65 @@ const AuditLogSchema = new Schema(
   { timestamps: true }
 );
 
+const LoginAttemptSchema = new Schema(
+  {
+    emailHash: { type: String, required: true, index: true },
+    ipHash: { type: String, required: true, index: true },
+    success: { type: Boolean, required: true },
+    expiresAt: { type: Date, required: true, index: { expireAfterSeconds: 0 } },
+  },
+  { timestamps: true }
+);
+LoginAttemptSchema.index({ emailHash: 1, ipHash: 1, createdAt: -1 });
+
+const WebhookEventSchema = new Schema(
+  {
+    provider: { type: String, enum: ["converty", "evolution"], required: true },
+    eventKey: { type: String, required: true },
+    processedAt: { type: Date, default: null },
+    expiresAt: { type: Date, required: true, index: { expireAfterSeconds: 0 } },
+  },
+  { timestamps: true }
+);
+WebhookEventSchema.index({ provider: 1, eventKey: 1 }, { unique: true });
+
+const MessageOutboxSchema = new Schema(
+  {
+    user: { type: Schema.Types.ObjectId, ref: "StudioUser", required: true, index: true },
+    customer: { type: Schema.Types.ObjectId, ref: "StudioCustomer", required: true, index: true },
+    kind: { type: String, enum: ["points_update"], required: true },
+    idempotencyKey: { type: String, required: true },
+    destination: { type: String, required: true },
+    text: { type: String, required: true },
+    status: { type: String, enum: ["pending", "sending", "sent", "failed"], default: "pending", index: true },
+    attempts: { type: Number, default: 0 },
+    nextAttemptAt: { type: Date, default: Date.now, index: true },
+    providerMessageId: { type: String, default: null },
+    lastError: { type: String, default: null },
+    sentAt: { type: Date, default: null },
+  },
+  { timestamps: true }
+);
+MessageOutboxSchema.index({ user: 1, idempotencyKey: 1 }, { unique: true });
+
+const PaymentRecordSchema = new Schema(
+  {
+    user: { type: Schema.Types.ObjectId, ref: "StudioUser", required: true, index: true },
+    amount: { type: Number, required: true },
+    currency: { type: String, default: "TND" },
+    method: { type: String, enum: ["bank_transfer", "flouci"], required: true },
+    reference: { type: String, required: true, trim: true },
+    note: { type: String, default: null },
+    status: { type: String, enum: ["verified", "rejected"], required: true },
+    verifiedBy: { type: Schema.Types.ObjectId, ref: "StudioUser", required: true },
+    verifiedAt: { type: Date, required: true },
+    periodStartsAt: { type: Date, required: true },
+    periodEndsAt: { type: Date, required: true },
+  },
+  { timestamps: true }
+);
+PaymentRecordSchema.index({ user: 1, reference: 1 }, { unique: true });
+
 export const StudioUser =
   mongoose.models.StudioUser || mongoose.model("StudioUser", UserSchema);
 export const StudioSession =
@@ -269,3 +339,11 @@ export const StudioRewardRedemption =
   mongoose.models.StudioRewardRedemption || mongoose.model("StudioRewardRedemption", RewardRedemptionSchema);
 export const StudioAuditLog =
   mongoose.models.StudioAuditLog || mongoose.model("StudioAuditLog", AuditLogSchema);
+export const StudioLoginAttempt =
+  mongoose.models.StudioLoginAttempt || mongoose.model("StudioLoginAttempt", LoginAttemptSchema);
+export const StudioWebhookEvent =
+  mongoose.models.StudioWebhookEvent || mongoose.model("StudioWebhookEvent", WebhookEventSchema);
+export const StudioMessageOutbox =
+  mongoose.models.StudioMessageOutbox || mongoose.model("StudioMessageOutbox", MessageOutboxSchema);
+export const StudioPaymentRecord =
+  mongoose.models.StudioPaymentRecord || mongoose.model("StudioPaymentRecord", PaymentRecordSchema);

@@ -309,7 +309,7 @@ body { -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility; }
 button,a,input,select,textarea { -webkit-tap-highlight-color:transparent; }
 :where(a,button,input,select,textarea):focus-visible { outline:3px solid rgba(200,116,79,.35);outline-offset:2px; }
 .app .sb-logo-img { width:38px;height:38px;object-fit:contain;flex:none;filter:drop-shadow(0 8px 12px rgba(0,0,0,.16)); }
-.app .sb-wordmark { width:102px;height:auto;object-fit:contain;filter:brightness(0) invert(1);opacity:.94; }
+.app .sb-wordmark { width:139px;height:auto;object-fit:contain;filter:brightness(0) invert(1);opacity:.96; }
 .app .sb-name,.app .sb-logo { display:none; }
 .app .input,.app select,.app textarea { min-height:42px;border-radius:11px; }
 .app label { display:grid;gap:7px;color:#6f6259;font-size:12px;font-weight:700; }

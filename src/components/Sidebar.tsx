@@ -81,14 +81,13 @@ function subActive(pathname: string, href: string) {
   return pathname === href;
 }
 
-export default function Sidebar({ shop }: { shop: ShopInfo }) {
+export default function Sidebar({ shop, onNavigate }: { shop: ShopInfo; onNavigate?: () => void }) {
   const pathname = usePathname();
 
   return (
-    <nav className="sidebar" data-screen-label="Sidebar">
+    <aside className="sidebar" data-screen-label="Sidebar" aria-label="Main navigation">
       <div className="sb-brand">
-        <Image className="sb-logo-img" src="/fidely-logo.png" width={38} height={38} alt="" priority />
-        <Image className="sb-wordmark" src="/complete-fidely-logo.png" width={102} height={38} alt="Fidely" priority />
+        <Image className="sb-wordmark" src="/complete-fidely-logo.png" width={139} height={45} alt="Fidely" priority />
       </div>
 
       {mainNav.map((item) => {
@@ -97,6 +96,7 @@ export default function Sidebar({ shop }: { shop: ShopInfo }) {
           <div className="nav-group" key={item.href}>
             <Link
               href={item.href}
+              onClick={onNavigate}
               className={`nav-item${active ? " active" : ""}`}
             >
               {item.icon}
@@ -108,6 +108,7 @@ export default function Sidebar({ shop }: { shop: ShopInfo }) {
                   <Link
                     key={sub.href}
                     href={sub.href}
+                    onClick={onNavigate}
                     className={subActive(pathname, sub.href) ? "on" : ""}
                   >
                     {sub.label}
@@ -122,6 +123,7 @@ export default function Sidebar({ shop }: { shop: ShopInfo }) {
       <div className="nav-cap">Account</div>
       <Link
         href={settingsNav.href}
+        onClick={onNavigate}
         className={`nav-item${sectionActive(pathname, settingsNav.href) ? " active" : ""}`}
       >
         {settingsNav.icon}
@@ -140,6 +142,6 @@ export default function Sidebar({ shop }: { shop: ShopInfo }) {
           </svg>
         </Link>
       </div>
-    </nav>
+    </aside>
   );
 }

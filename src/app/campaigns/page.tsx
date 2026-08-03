@@ -6,11 +6,11 @@ import Link from "next/link";
 
 const stateMeta: Record<string, { label: string; cls: string }> = {
   draft: { label: "Draft", cls: "" }, sending: { label: "Sending", cls: "live" },
-  sent: { label: "Completed", cls: "live" }, completed: { label: "Completed", cls: "live" },
+  sent: { label: "Completed", cls: "live" }, completed: { label: "Completed", cls: "live" }, partially_failed: { label: "Partially failed", cls: "" }, paused: { label: "Paused", cls: "cod" },
   cancelled: { label: "Cancelled", cls: "" }, scheduled: { label: "Scheduled", cls: "cod" },
 };
-function CampaignRows({ campaigns, empty }: { campaigns: ApiCampaign[]; empty: string }) {
-  if (!campaigns.length) return <div className="empty-state"><h3>{empty}</h3><p>Campaigns in this stage will appear here.</p></div>;
+function CampaignRows({ campaigns, empty, description }: { campaigns: ApiCampaign[]; empty: string; description: string }) {
+  if (!campaigns.length) return <div className="empty-state campaign-empty"><span className="empty-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 13l13-9-3 17-4-5-6-3z" /></svg></span><h3>{empty}</h3><p>{description}</p><Link className="btn btn-secondary btn-sm" href="/campaigns?view=create">Create campaign</Link></div>;
   return <div>{campaigns.map((campaign) => {
     const meta = stateMeta[campaign.state] || { label: campaign.state, cls: "" }; return <Link className="ch-row campaign-history-link" href={`/campaigns/${campaign.slug}`} key={campaign.id}>
       <span className="ch-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 13l13-9-3 17-4-5-6-3z" /></svg></span>
@@ -36,12 +36,12 @@ export default async function CampaignsPage({ searchParams }: { searchParams: Pr
     return <><header className="topbar"><div><div className="breadcrumb"><Link href="/campaigns">Campaigns</Link><span>/</span><span className="cur">New campaign</span></div><h1>Create WhatsApp campaign</h1><div className="subt">Choose the audience and reward, then review the eligible recipients before sending.</div></div><div className="tb-actions"><Link className="btn btn-secondary" href="/campaigns">Cancel</Link></div></header><div className="content"><CampaignBuilder segments={segments} storeName={user.shopName || "Your store"} initial={sp} /></div></>;
   }
   const drafts = campaigns.filter((campaign) => campaign.state === "draft");
-  const active = campaigns.filter((campaign) => ["sending", "scheduled"].includes(campaign.state));
-  const history = campaigns.filter((campaign) => ["sent", "completed", "cancelled"].includes(campaign.state));
+  const active = campaigns.filter((campaign) => ["sending", "scheduled", "paused"].includes(campaign.state));
+  const history = campaigns.filter((campaign) => ["sent", "completed", "partially_failed", "cancelled"].includes(campaign.state));
   return <><header className="topbar"><div><ConvertySyncCrumb className="crumb" /><h1>Campaigns</h1><div className="subt">Create, resume, and review every WhatsApp campaign from one place.</div></div><div className="tb-actions"><Link className="btn btn-primary" href="/campaigns?view=create">Create campaign</Link></div></header>
-    <div className="content"><section className="kpi-row block">{[["All campaigns", campaigns.length], ["Drafts", drafts.length], ["In progress", active.length], ["Campaign history", history.length]].map(([label, value]) => <article className="kpi" key={label}><div className="k-label">{label}</div><div className="k-val">{value}</div></article>)}</section>
-      <div className="campaign-library"><section className="panel"><div className="p-head"><div><h3>Drafts</h3><div className="sub">Campaigns waiting for review or launch</div></div></div><CampaignRows campaigns={drafts} empty="No campaign drafts" /></section>
-        <section className="panel"><div className="p-head"><div><h3>In progress</h3><div className="sub">Scheduled campaigns and messages currently sending</div></div></div><CampaignRows campaigns={active} empty="No active campaigns" /></section>
-        <section className="panel campaign-history"><div className="p-head"><div><h3>Campaign history</h3><div className="sub">Completed and cancelled campaigns remain available for consultation</div></div></div><CampaignRows campaigns={history} empty="No old campaigns yet" /></section></div>
+    <div className="content"><section className="kpi-row block">{[["All campaigns", campaigns.length], ["Draft", drafts.length], ["Running", active.length], ["Completed", history.length]].map(([label, value]) => <article className="kpi" key={label}><div className="k-label">{label}</div><div className="k-val">{value}</div></article>)}</section>
+      <div className="campaign-library"><section className="panel"><div className="p-head"><div><h3>Draft</h3><div className="sub">Campaigns waiting for review or launch</div></div></div><CampaignRows campaigns={drafts} empty="No campaign drafts" description="Start a WhatsApp campaign and save it when you are ready to review." /></section>
+        <section className="panel"><div className="p-head"><div><h3>Running</h3><div className="sub">Scheduled, paused, and currently sending campaigns</div></div></div><CampaignRows campaigns={active} empty="No running campaigns" description="Campaigns being scheduled, sent, or paused will appear here." /></section>
+        <section className="panel campaign-history"><div className="p-head"><div><h3>Completed</h3><div className="sub">Completed and cancelled campaign history</div></div></div><CampaignRows campaigns={history} empty="No completed campaigns" description="Bring previous customers back with a targeted WhatsApp message." /></section></div>
     </div></>;
 }

@@ -12,7 +12,7 @@ export default function LandingPage() {
     <div className="landing">
       <header className="landing-nav">
         <Link className="landing-brand" href="/" aria-label="Fidely home">
-          <Image src="/complete-fidely-logo.png" width={132} height={49} alt="Fidely" priority />
+          <Image src="/complete-fidely-logo.png" width={132} height={43} alt="Fidely" priority />
         </Link>
         <nav aria-label="Main navigation">
           <a href="#product">Product</a>
@@ -51,6 +51,7 @@ export default function LandingPage() {
               See how it works
             </a>
           </div>
+          <p className="landing-trial"><b>7-day free trial</b> · Then 49 DT/month · No card required</p>
           <div className="landing-trust">
             <span><Check /> Secure Converty OAuth</span>
             <span><Check /> Delivery-first analytics</span>
@@ -148,7 +149,7 @@ export default function LandingPage() {
 
       <footer className="landing-footer">
         <span>© 2026 Fidely Studio</span>
-        <span>Connected commerce intelligence for Converty merchants.</span>
+        <span><Link href="/privacy">Privacy</Link> · <Link href="/terms">Terms</Link> · <Link href="/acceptable-use">WhatsApp acceptable use</Link></span>
       </footer>
     </div>
   );

@@ -9,6 +9,8 @@ import {
   StudioCustomer,
   StudioInfluencer,
   StudioLoyaltyTransaction,
+  StudioMessageOutbox,
+  StudioPaymentRecord,
   StudioRewardRedemption,
   StudioOrder,
   StudioSession,
@@ -26,8 +28,8 @@ import { ensureSubscription } from "./subscriptions";
 import { classifyCustomers, type SegmentKey } from "@/lib/customer-segments";
 import { customerRows } from "./studio-service";
 import { snapshotAudience } from "@/lib/campaign-audience";
-import { connectWhatsApp, sendCampaignBatch } from "./evolution";
-import { redeemReward } from "./loyalty";
+import { connectWhatsApp, disconnectWhatsApp, sendCampaignBatch } from "./evolution";
+import { redeemReward, updateRedemption } from "./loyalty";
 
 const campaignCreateSchema = z.object({
   name: z.string().trim().min(2).max(100),
@@ -47,18 +49,19 @@ const campaignUpdateSchema = z.object({
   name: z.string().trim().min(2).max(100).optional(),
   message: z.string().trim().min(10).max(1000).optional(),
   scheduledAt: z.string().datetime().nullable().optional(),
-  state: z.enum(["draft", "cancelled"]).optional(),
+  state: z.enum(["draft", "paused", "cancelled"]).optional(),
 }).strict();
 
 const customerUpdateSchema = z.object({
   note: z.string().max(2000).nullable().optional(),
   tags: z.array(z.string().trim().min(1).max(40)).max(20).optional(),
   marketingConsent: z.object({ whatsapp: z.boolean(), sms: z.boolean(), email: z.boolean() }).strict().optional(),
+  marketingConsentEvidence: z.object({ whatsapp: z.object({ source: z.enum(["checkout", "written", "verbal", "imported", "other"]), recordedAt: z.string().datetime(), note: z.string().trim().max(500).nullable() }).strict() }).strict().optional(),
 }).strict();
 const loyaltySchema = z.object({
   enabled: z.boolean().optional(),
   earnRules: z.array(z.object({ name: z.string().trim().min(1).max(80), icon: z.string().max(30), points: z.number().int().min(0).max(100000), perAmount: z.number().min(0).max(1000000), note: z.string().max(200).nullable(), active: z.boolean() }).strict()).max(10).optional(),
-  rewards: z.array(z.object({ _id: z.unknown().optional(), name: z.string().trim().min(1).max(100), icon: z.string().max(30), cost: z.number().int().min(1).max(1000000), note: z.string().max(200).nullable(), active: z.boolean(), redeemed: z.number().int().min(0).default(0) }).strict()).max(20).optional(),
+  rewards: z.array(z.object({ id: z.string().trim().min(1).max(100), name: z.string().trim().min(1).max(100), icon: z.string().max(30), cost: z.number().int().min(1).max(1000000), note: z.string().max(200).nullable(), active: z.boolean(), redeemed: z.number().int().min(0).default(0) }).strict()).max(20).optional(),
 }).strict();
 
 export async function studioMutate(
@@ -75,7 +78,7 @@ export async function studioMutate(
   const protectedWrite = clean.startsWith("customers/") || ["campaigns", "referral", "loyalty", "widgets", "whatsapp"].some((prefix) => clean === prefix || clean.startsWith(`${prefix}/`));
   if (protectedWrite) {
     const subscription = await ensureSubscription(userId);
-    if (effectiveSubscription(subscription.status, subscription.trialEndsAt) === "restricted") {
+    if (effectiveSubscription(subscription.status, subscription.trialEndsAt, subscription.currentPeriodEndsAt) === "restricted") {
       throw Object.assign(new Error("Your trial or subscription is not active"), { status: 402 });
     }
   }
@@ -127,8 +130,20 @@ export async function studioMutate(
   if (clean.match(/^campaigns\/[^/]+\/send$/) && method === "POST") {
     return sendCampaignBatch(userId, clean.split("/")[1], Number(body.limit) || 20);
   }
+  if (clean.match(/^campaigns\/[^/]+\/(pause|resume|cancel|retry)$/) && method === "POST") {
+    const [, slug, action] = clean.split("/");
+    const campaign = await StudioCampaign.findOne({ user: userId, slug });
+    if (!campaign) throw Object.assign(new Error("Campaign not found"), { status: 404 });
+    if (action === "retry") { await StudioCampaignRecipient.updateMany({ user: userId, campaign: campaign._id, status: "failed" }, { $set: { status: "queued", failureReason: null } }); campaign.state = "draft"; }
+    else if (action === "pause") campaign.state = "paused";
+    else if (action === "resume") campaign.state = "sending";
+    else campaign.state = "cancelled";
+    await campaign.save();
+    return { campaign };
+  }
 
   if (clean === "whatsapp/connect" && method === "POST") return connectWhatsApp(userId);
+  if (clean === "whatsapp/disconnect" && method === "POST") return disconnectWhatsApp(userId);
 
   if (clean.startsWith("campaigns/") && method === "PATCH") {
     const parsed = campaignUpdateSchema.safeParse(body);
@@ -174,6 +189,7 @@ export async function studioMutate(
     if (!mongoose.isValidObjectId(customerId)) throw Object.assign(new Error("Invalid customer"), { status: 400 });
     const parsed = customerUpdateSchema.safeParse(body);
     if (!parsed.success) throw Object.assign(new Error(parsed.error.issues[0]?.message || "Invalid customer update"), { status: 400 });
+    if (parsed.data.marketingConsent?.whatsapp && !parsed.data.marketingConsentEvidence?.whatsapp) throw Object.assign(new Error("WhatsApp consent evidence is required"), { status: 400 });
     const customer = await StudioCustomer.findOneAndUpdate(
       { _id: customerId, user: userId },
       { $set: parsed.data },
@@ -186,9 +202,14 @@ export async function studioMutate(
   if (clean.match(/^loyalty\/customers\/[^/]+\/redeem$/) && method === "POST") {
     const customerId = clean.split("/")[2];
     if (!mongoose.isValidObjectId(customerId)) throw Object.assign(new Error("Invalid customer"), { status: 400 });
-    const rewardIndex = z.number().int().min(0).safeParse(body.rewardIndex);
-    if (!rewardIndex.success) throw Object.assign(new Error("Select a valid reward"), { status: 400 });
-    return redeemReward(userId, customerId, rewardIndex.data);
+    const rewardId = z.string().trim().min(1).max(100).safeParse(body.rewardId);
+    if (!rewardId.success) throw Object.assign(new Error("Select a valid reward"), { status: 400 });
+    return redeemReward(userId, customerId, rewardId.data);
+  }
+  if (clean.match(/^loyalty\/redemptions\/[^/]+\/(fulfill|cancel)$/) && method === "POST") {
+    const [, , redemptionId, action] = clean.split("/");
+    if (!mongoose.isValidObjectId(redemptionId)) throw Object.assign(new Error("Invalid redemption"), { status: 400 });
+    return updateRedemption(userId, redemptionId, action as "fulfill" | "cancel");
   }
 
   if (["referral", "loyalty", "widgets"].includes(clean) && method === "PUT") {
@@ -205,6 +226,7 @@ export async function studioMutate(
   if (clean === "converty/webhooks/setup" && method === "POST") return setupWebhooksForUser(userId);
   if (clean === "converty/disconnect" && method === "POST") {
     await teardownWebhooksForUser(userId);
+    await disconnectWhatsApp(userId);
     await Promise.all([
       StudioConvertyConnection.deleteOne({ user: userId }),
       StudioSession.deleteMany({ user: userId }),
@@ -232,6 +254,7 @@ export async function studioMutate(
       StudioCampaignRecipient.deleteMany({ user: userId }),
       StudioLoyaltyTransaction.deleteMany({ user: userId }),
       StudioRewardRedemption.deleteMany({ user: userId }),
+      StudioMessageOutbox.deleteMany({ user: userId }), StudioPaymentRecord.deleteMany({ user: userId }),
       StudioCustomer.deleteMany({ user: userId }), StudioInfluencer.deleteMany({ user: userId }),
       StudioOrder.deleteMany({ user: userId }), StudioSubscription.deleteMany({ user: userId }),
       StudioConvertyConnection.deleteMany({ user: userId }),

@@ -58,7 +58,7 @@ export default function LoyaltyManager({ program }: { program: LoyaltyProgram })
     setRewards((items) => items.map((reward, index) => index === i ? { ...reward, ...patch } : reward));
   }
   function addReward() {
-    setRewards((items) => [...items, { name: "", icon: "gift", cost: 100, note: "", active: true, redeemed: 0 }]);
+    setRewards((items) => [...items, { id: crypto.randomUUID(), name: "", icon: "gift", cost: 100, note: "", active: true, redeemed: 0 }]);
   }
 
   async function save() {
@@ -168,7 +168,7 @@ export default function LoyaltyManager({ program }: { program: LoyaltyProgram })
           </thead>
           <tbody>
             {rewards.map((r, i) => (
-              <tr key={r._id ? String(r._id) : `reward-${i}`} className={r.active ? undefined : "row-inactive"}>
+              <tr key={r.id} className={r.active ? undefined : "row-inactive"}>
                 <td>
                   <span className="pts-cell">
                     <input className="input" type="number" min={1} aria-label="Reward points cost" placeholder="Points required" value={r.cost} onChange={(event) => updateReward(i, { cost: Number(event.target.value) })} style={{ width: 90 }} />

@@ -6,12 +6,13 @@ import {
   StudioConvertyConnection,
   StudioCustomer,
   StudioOrder,
+  StudioPaymentRecord,
   StudioSubscription,
   StudioUser,
 } from "./models";
 import { effectiveSubscription } from "@/lib/plans";
 import { classifyCustomers } from "@/lib/customer-segments";
-import { customerRows } from "./studio-service";
+import { customerRowsForUsers } from "./studio-service";
 
 export async function requireAdmin(userId: string) {
   await connectDatabase();
@@ -24,14 +25,15 @@ export async function adminDashboard(userId: string) {
   await requireAdmin(userId);
   const users = await StudioUser.find({ role: "shop" }).sort({ createdAt: -1 }).lean();
   const ids = users.map((user) => user._id);
-  const [subscriptions, connections, customerCounts, orderMetrics, campaignMetrics, loyaltyConfigs, segmentRows] = await Promise.all([
+  const [subscriptions, connections, customerCounts, orderMetrics, campaignMetrics, loyaltyConfigs, payments, allCustomerRows] = await Promise.all([
     StudioSubscription.find({ user: { $in: ids } }).lean(),
     StudioConvertyConnection.find({ user: { $in: ids } }).select("user storeName lastSyncAt lastSyncError webhookIds").lean(),
     StudioCustomer.aggregate<{ _id: unknown; count: number; loyaltyMembers: number; points: number }>([{ $match: { user: { $in: ids } } }, { $group: { _id: "$user", count: { $sum: 1 }, loyaltyMembers: { $sum: { $cond: [{ $gt: ["$points", 0] }, 1, 0] } }, points: { $sum: "$points" } } }]),
     StudioOrder.aggregate<{ _id: unknown; count: number; revenue: number; cost: number; delivered: number }>([{ $match: { user: { $in: ids } } }, { $group: { _id: "$user", count: { $sum: 1 }, revenue: { $sum: { $cond: [{ $eq: ["$status", "delivered"] }, "$amount", 0] } }, cost: { $sum: { $cond: [{ $eq: ["$status", "delivered"] }, "$cost", 0] } }, delivered: { $sum: { $cond: [{ $eq: ["$status", "delivered"] }, 1, 0] } } } }]),
     StudioCampaign.aggregate<{ _id: unknown; total: number; drafts: number; launched: number }>([{ $match: { user: { $in: ids } } }, { $group: { _id: "$user", total: { $sum: 1 }, drafts: { $sum: { $cond: [{ $eq: ["$state", "draft"] }, 1, 0] } }, launched: { $sum: { $cond: [{ $in: ["$state", ["sending", "sent", "completed", "scheduled"]] }, 1, 0] } } } }]),
     StudioConfig.find({ user: { $in: ids }, key: "loyalty" }).select("user data.enabled data.rewards").lean(),
-    Promise.all(users.map(async (user) => ({ user: user._id, classification: classifyCustomers(await customerRows(String(user._id))) }))),
+    StudioPaymentRecord.find({ user: { $in: ids }, status: "verified" }).sort({ verifiedAt: -1 }).lean(),
+    customerRowsForUsers(ids.map(String)),
   ]);
   const byUser = <T extends { user?: unknown; _id?: unknown }>(rows: T[], id: unknown) => rows.find((row) => String(row.user ?? row._id) === String(id));
   const merchants = users.map((user) => {
@@ -41,12 +43,13 @@ export async function adminDashboard(userId: string) {
     const campaign = byUser(campaignMetrics, user._id);
     const customerMetric = byUser(customerCounts, user._id);
     const loyalty = byUser(loyaltyConfigs, user._id);
-    const segments = segmentRows.find((row) => String(row.user) === String(user._id))?.classification;
+    const payment = byUser(payments, user._id);
+    const segments = classifyCustomers(allCustomerRows.get(String(user._id)) || []);
     return {
       id: String(user._id), email: user.email || "", shopName: user.shopName,
       ownerName: user.ownerName || "", createdAt: user.createdAt,
       subscription: subscription ? {
-        status: effectiveSubscription(subscription.status, subscription.trialEndsAt),
+        status: effectiveSubscription(subscription.status, subscription.trialEndsAt, subscription.currentPeriodEndsAt),
         rawStatus: subscription.status, trialEndsAt: subscription.trialEndsAt,
         currentPeriodEndsAt: subscription.currentPeriodEndsAt || null,
       } : null,
@@ -55,6 +58,7 @@ export async function adminDashboard(userId: string) {
       loyaltyMembers: customerMetric?.loyaltyMembers || 0,
       pointsOutstanding: customerMetric?.points || 0,
       activeRewards: Array.isArray(loyalty?.data?.rewards) ? loyalty.data.rewards.filter((reward: { active?: boolean }) => reward.active).length : 0,
+      lastPayment: payment ? { amount: payment.amount, method: payment.method, reference: payment.reference, verifiedAt: payment.verifiedAt } : null,
       orders: order?.count || 0,
       deliveredOrders: order?.delivered || 0,
       revenue: Math.round(order?.revenue || 0),
@@ -77,11 +81,12 @@ export async function adminDashboard(userId: string) {
   };
 }
 
-export async function setMerchantSubscription(adminId: string, merchantId: string, active: boolean) {
+export async function setMerchantSubscription(adminId: string, merchantId: string, active: boolean, payment?: { method: "bank_transfer" | "flouci"; reference: string; amount: number; note?: string }) {
   await requireAdmin(adminId);
   const merchant = await StudioUser.findOne({ _id: merchantId, role: "shop" }).lean();
   if (!merchant) throw Object.assign(new Error("Merchant not found"), { status: 404 });
   const now = new Date();
+  if (active && (!payment || payment.amount !== 49 || payment.reference.trim().length < 3)) throw Object.assign(new Error("Payment method, 49 DT amount, and reference are required"), { status: 400 });
   const subscription = await StudioSubscription.findOneAndUpdate(
     { user: merchantId },
     active
@@ -89,6 +94,7 @@ export async function setMerchantSubscription(adminId: string, merchantId: strin
       : { $set: { plan: "fidely", status: "cancelled", currentPeriodEndsAt: now }, $setOnInsert: { trialEndsAt: now } },
     { new: true, upsert: true, setDefaultsOnInsert: true }
   ).lean();
+  if (active && payment) await StudioPaymentRecord.create({ user: merchantId, amount: payment.amount, currency: "TND", method: payment.method, reference: payment.reference.trim(), note: payment.note?.trim() || null, status: "verified", verifiedBy: adminId, verifiedAt: now, periodStartsAt: now, periodEndsAt: subscription.currentPeriodEndsAt });
   await StudioAuditLog.create({ actor: adminId, action: active ? "subscription.activated" : "subscription.deactivated", targetUser: merchantId, details: { currentPeriodEndsAt: subscription.currentPeriodEndsAt } });
   return { subscription };
 }

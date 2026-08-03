@@ -88,7 +88,10 @@ export default function ConvertyManager({ initial, callbackStatus, callbackMessa
 
     try {
 
-      await syncConvertyOrders();
+      for (;;) {
+        const result = await syncConvertyOrders() as { complete?: boolean };
+        if (result.complete !== false) break;
+      }
 
       await refreshStatus();
 
@@ -247,13 +250,7 @@ export default function ConvertyManager({ initial, callbackStatus, callbackMessa
 
       {!status.configured ? (
 
-        <p className="muted" style={{ fontSize: 13.5, lineHeight: 1.5 }}>
-
-          The server needs <code>CONVERTY_CLIENT_ID</code>, <code>CONVERTY_CLIENT_SECRET</code>,{" "}
-          <code>CONVERTY_REDIRECT_URI</code>, and <code>TOKEN_ENCRYPTION_KEY</code> in{" "}
-          <code>studio-app/.env.local</code> before shops can connect.
-
-        </p>
+        <div className="integration-unavailable"><strong>Store connection is temporarily unavailable</strong><p>Contact your Fidely administrator to enable the Converty integration.</p><details><summary>Developer setup</summary><p>The server requires <code>CONVERTY_CLIENT_ID</code>, <code>CONVERTY_CLIENT_SECRET</code>, <code>CONVERTY_REDIRECT_URI</code>, and <code>TOKEN_ENCRYPTION_KEY</code>.</p></details></div>
 
       ) : connected && store ? (
 
