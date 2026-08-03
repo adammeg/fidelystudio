@@ -48,22 +48,6 @@ imports the store's orders and customers.
 
 ## Production variables
 
-```env
-MONGODB_URI=
-TOKEN_ENCRYPTION_KEY=
-CONVERTY_CLIENT_ID=
-CONVERTY_CLIENT_SECRET=
-CONVERTY_REDIRECT_URI=https://studio.example.com/api/auth/converty/callback
-STUDIO_APP_URL=https://studio.example.com
-APP_URL=https://studio.example.com
-EVOLUTION_API_URL=https://evolution.example.com
-EVOLUTION_API_KEY=replace-with-a-strong-evolution-api-key
-ORDER_RAW_RETENTION_DAYS=90
-DEFAULT_USER_EMAIL=admin@studio.example.com
-DEFAULT_USER_PASSWORD=replace-with-a-strong-initial-password
-DEFAULT_USER_SHOP_NAME=Fidely Studio
-```
-
 Converty requires webhook targets to use the same origin as a registered
 redirect URI. Because the webhook endpoint is
 `/api/converty/webhooks/[storeId]`, `STUDIO_APP_URL` and
