@@ -11,7 +11,7 @@ export default async function LoginPage({
     <div className="login-wrap">
       <div className="login-card">
         <div className="login-brand">
-          <Image src="/complete-fidely-logo.png" width={154} height={52} alt="Fidely" priority unoptimized />
+          <Image src="public/fidely-logo.png" width={154} height={52} alt="Fidely" priority unoptimized />
         </div>
         <h1 className="login-title">Connect your store</h1>
         <p className="login-sub">
@@ -40,7 +40,7 @@ export default async function LoginPage({
         </div>
 
         <a className="btn btn-primary login-submit converty-login" href="/api/auth/converty/start">
-          <Image className="converty-mark-img" src="/converty-logo.png" width={25} height={25} alt="" aria-hidden="true" unoptimized />
+          <Image className="converty-mark-img" src="public/converty-logo.png" width={25} height={25} alt="" aria-hidden="true" unoptimized />
           Continue with Converty
         </a>
 
