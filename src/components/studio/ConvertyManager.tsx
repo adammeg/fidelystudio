@@ -353,7 +353,7 @@ export default function ConvertyManager({ initial, callbackStatus, callbackMessa
 
             <button className="btn btn-secondary" onClick={sync} disabled={busy !== null}>
 
-              {busy === "sync" ? "Importing…" : "Refresh all orders"}
+              {busy === "sync" ? "Importing…" : "Backfill historical orders"}
 
             </button>
 

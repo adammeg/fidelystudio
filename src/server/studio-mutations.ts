@@ -181,7 +181,18 @@ export async function studioMutate(
     const parsed = influencerCampaignSchema.safeParse(body);
     if (!parsed.success) throw Object.assign(new Error(parsed.error.issues[0]?.message || "Invalid influencer campaign"), { status: 400 });
     const campaign = await StudioInfluencerCampaign.create({ user: userId, ...parsed.data });
-    return { campaign };
+    const matched = await StudioOrder.updateMany(
+      { user: userId, promoCode: parsed.data.promoCode },
+      { $set: { attributedInfluencer: campaign._id } }
+    );
+    const customerIds = await StudioOrder.distinct("customer", { user: userId, attributedInfluencer: campaign._id });
+    for (const customerId of customerIds) {
+      const firstOrder = await StudioOrder.findOne({ user: userId, customer: customerId }).sort({ placedAt: 1 }).select("placedAt attributedInfluencer promoCode").lean();
+      if (firstOrder && String(firstOrder.attributedInfluencer || "") === String(campaign._id)) {
+        await StudioCustomer.updateOne({ _id: customerId, user: userId }, { $set: { sourceFirstOrderAt: firstOrder.placedAt, source: { type: "influencer", influencer: campaign._id, code: firstOrder.promoCode } } });
+      }
+    }
+    return { campaign, matchedOrders: matched.modifiedCount };
   }
 
   if (clean.match(/^influencers\/[^/]+\/payout$/) && method === "POST") {

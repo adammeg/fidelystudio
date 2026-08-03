@@ -1276,6 +1276,7 @@ tr,
 .influencer-form-body { display: grid; gap: 14px; padding: 16px 20px 20px; }
 .influencer-form-actions { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
 .influencer-form-actions p { color: var(--text-muted); font-size: 11.5px; }
+.save-success { padding: 10px 12px; border: 1px solid #cfe6d6; border-radius: 10px; color: var(--success); background: #eef8f1; font-size: 12.5px; font-weight: 700; }
 .influencer-input-row { display: grid; grid-template-columns: minmax(0,1.4fr) minmax(150px,1fr) minmax(120px,.7fr) 36px; gap: 10px; align-items: end; padding: 12px; border: 1px solid var(--border); border-radius: 12px; background: var(--background); }
 .influencer-input-row .field + .field { margin-top: 0; }
 .promo-input { text-transform: uppercase; letter-spacing: .04em; font-weight: 750; }
