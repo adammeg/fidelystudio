@@ -1,5 +1,5 @@
 import { convertyApi, studioAppUrl } from "./converty";
-import { StudioCampaignRecipient, StudioConvertyConnection, StudioCustomer, StudioOrder } from "./models";
+import { StudioCampaign, StudioCampaignRecipient, StudioConvertyConnection, StudioCustomer, StudioInfluencer, StudioOrder } from "./models";
 import { decryptSecret } from "./security";
 import { reconcileOrderRewards } from "./loyalty";
 import { sendDeliveryPointsUpdate } from "./evolution";
@@ -24,6 +24,7 @@ export type ConvertyOrder = {
   total?: {
     totalPrice?: number;
     deliveryCost?: number;
+    promoCode?: { couponId?: string; code?: string; discountType?: string; discountValue?: number; amount?: number; freeShipping?: boolean } | null;
   };
   history?: { status?: string; timestamp?: number }[];
   createdAt?: string;
@@ -53,6 +54,18 @@ export function sourceUpdatedAt(order: ConvertyOrder) {
   return Number.isFinite(value.getTime()) ? value : new Date(0);
 }
 
+export function promoSnapshot(order: ConvertyOrder) {
+  const promo = order.total?.promoCode;
+  return {
+    code: String(promo?.code || "").trim().toUpperCase() || null,
+    couponId: promo?.couponId || null,
+    discountType: promo?.discountType || null,
+    discountValue: promo?.discountValue || 0,
+    amount: promo?.amount || 0,
+    freeShipping: Boolean(promo?.freeShipping),
+  };
+}
+
 async function withRetries<T>(operation: () => Promise<T>, attempts = 3) {
   let lastError: unknown;
   for (let attempt = 1; attempt <= attempts; attempt += 1) {
@@ -75,6 +88,11 @@ export async function syncOrder(userId: string, order: ConvertyOrder, notifyCust
   if (existingUpdatedAt && new Date(existingUpdatedAt).getTime() > incomingUpdatedAt.getTime()) return false;
   const status = normalizedStatus(order);
   const delivered = deliveredAt(order);
+  const placedAt = new Date(order.createdAt || Date.now());
+  const promo = promoSnapshot(order);
+  const promoCode = promo.code;
+  const influencer = promoCode ? await StudioInfluencer.findOne({ user: userId, code: promoCode }).lean() : null;
+  const promoCampaign = promoCode ? await StudioCampaign.findOne({ user: userId, "influencers.promoCode": promoCode }).sort({ createdAt: -1 }).select("_id").lean() : null;
   const customer = await StudioCustomer.findOneAndUpdate(
     { user: userId, phone: order.customer.phone.trim() },
     {
@@ -83,7 +101,7 @@ export async function syncOrder(userId: string, order: ConvertyOrder, notifyCust
         email: order.customer.email || null,
         ...(delivered ? { lastDeliveredAt: delivered } : {}),
       },
-      $setOnInsert: { source: { type: "direct" }, points: 0, tier: "Member" },
+      $setOnInsert: { source: influencer ? { type: "influencer", influencer: influencer._id, code: promoCode } : { type: "direct" }, sourceFirstOrderAt: placedAt, points: 0, tier: "Member" },
     },
     { new: true, upsert: true, setDefaultsOnInsert: true }
   );
@@ -91,7 +109,6 @@ export async function syncOrder(userId: string, order: ConvertyOrder, notifyCust
     (sum, item) => sum + (item.product?.cost || 0) * (item.quantity || 1),
     0
   );
-  const placedAt = new Date(order.createdAt || Date.now());
   const attributedRecipient = await StudioCampaignRecipient.findOne({
     user: userId, customer: customer._id, status: { $in: ["sent", "delivered"] },
     sentAt: { $lte: placedAt, $gte: new Date(placedAt.getTime() - 14 * 86_400_000) },
@@ -115,14 +132,24 @@ export async function syncOrder(userId: string, order: ConvertyOrder, notifyCust
       amount: order.total?.totalPrice || 0,
       cost: productCost + (order.total?.deliveryCost || 0),
       raw: { cart: order.cart || [] },
+      promoCode,
+      promoCouponId: promo.couponId,
+      promoDiscountType: promo.discountType,
+      promoDiscountValue: promo.discountValue,
+      promoDiscountAmount: promo.amount,
+      promoFreeShipping: promo.freeShipping,
       placedAt,
       deliveredAt: delivered,
       sourceUpdatedAt: incomingUpdatedAt,
-      attributedCampaign: attributedRecipient?.campaign || null,
+      attributedCampaign: promoCampaign?._id || attributedRecipient?.campaign || null,
+      attributedInfluencer: influencer?._id || null,
     },
     { upsert: !existing, new: true, setDefaultsOnInsert: true }
   );
   if (updated) {
+    if (placedAt.getTime() < new Date(customer.sourceFirstOrderAt || 8640000000000000).getTime()) {
+      await StudioCustomer.updateOne({ _id: customer._id }, { $set: { sourceFirstOrderAt: placedAt, source: influencer ? { type: "influencer", influencer: influencer._id, code: promoCode } : { type: "direct" } } });
+    }
     const reward = await reconcileOrderRewards(userId, String(updated._id));
     if (notifyCustomer && reward.credited > 0) {
       try { await sendDeliveryPointsUpdate(userId, String(customer._id), reward.credited, String(updated._id)); }

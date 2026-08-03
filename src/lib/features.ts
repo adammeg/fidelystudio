@@ -5,7 +5,7 @@ export const PRODUCT_FEATURES = {
   cohorts: true,
   settings: true,
   campaigns: true,
-  influencers: false,
+  influencers: true,
   referrals: false,
   loyalty: true,
   widgets: false,
@@ -13,7 +13,6 @@ export const PRODUCT_FEATURES = {
 } as const;
 
 export const UNSUPPORTED_STUDIO_API_PREFIXES = [
-  "influencers",
   "referral",
   "widgets",
 ] as const;

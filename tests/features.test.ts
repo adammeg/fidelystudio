@@ -9,15 +9,11 @@ describe("supported product surface", () => {
     expect(PRODUCT_FEATURES.whatsappCampaigns).toBe(false);
   });
 
-  it.each([
-    "influencers",
-    "referral",
-    "widgets",
-  ])("rejects hidden Studio API %s", (path) => {
+  it.each(["referral", "widgets"])("rejects hidden Studio API %s", (path) => {
     expect(isUnsupportedStudioApi(path)).toBe(true);
   });
 
-  it.each(["overview", "customers", "segments", "cohorts", "campaigns", "campaigns/example", "converty/status", "loyalty", "loyalty/customers"])(
+  it.each(["overview", "customers", "segments", "cohorts", "campaigns", "campaigns/example", "influencers", "converty/status", "loyalty", "loyalty/customers"])(
     "keeps supported Studio API %s available",
     (path) => {
       expect(isUnsupportedStudioApi(path)).toBe(false);

@@ -33,6 +33,8 @@ export interface ApiInfluencer {
   placed: number;
   delivered: number;
   deliveredPct: number;
+  customers: number;
+  budget?: number;
   earned: number;
   commission: number;
   paidOut: number;
@@ -59,7 +61,7 @@ export interface ApiCampaign {
   updatedAt: string | null;
   channels: string[];
   segmentKey: string | null;
-  influencers: { id: string; handle: string; initial: string; avatarBg: string }[];
+  influencers: { id: string; handle: string; promoCode: string; budget: number; initial: string; avatarBg: string }[];
   placed: number;
   delivered: number;
   deliveredPct: number;

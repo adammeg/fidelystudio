@@ -18,6 +18,7 @@ export interface SegmentOption {
 
 type Incentive = "points" | "free_delivery" | "discount" | "gift";
 type Goal = "Repeat purchase" | "Reactivation" | "Referral" | "New customers" | "Revenue";
+type InfluencerInput = { id: string; name: string; promoCode: string; budget: number };
 
 const INCENTIVES: { key: Incentive; label: string }[] = [
   { key: "points", label: "Double points" },
@@ -71,6 +72,14 @@ export default function CampaignBuilder({
   const hours = 48;
   const [launching, setLaunching] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [influencers, setInfluencers] = useState<InfluencerInput[]>([]);
+
+  function addInfluencer() {
+    setInfluencers((current) => [...current, { id: crypto.randomUUID(), name: "", promoCode: "", budget: 0 }]);
+  }
+  function updateInfluencer(id: string, patch: Partial<InfluencerInput>) {
+    setInfluencers((current) => current.map((entry) => entry.id === id ? { ...entry, ...patch } : entry));
+  }
 
   const segment = segments.find((s) => s.key === segKey) || segments[0];
 
@@ -105,6 +114,7 @@ export default function CampaignBuilder({
           segmentKey: segKey || undefined,
           incentiveType: incentive,
           message,
+          influencers: influencers.filter((entry) => entry.name.trim() && entry.promoCode.trim()).map(({ name, promoCode, budget }) => ({ name, promoCode, budget })),
         }),
       });
       if (!res.ok) throw new Error((await res.json().catch(() => ({}))).message || "Launch failed");
@@ -128,6 +138,17 @@ export default function CampaignBuilder({
             <label>Campaign name</label>
             <input className="input" value={name} onChange={(e) => setName(e.target.value)} style={{ maxWidth: "420px", fontWeight: 700 }} />
           </div>
+        </div>
+
+        <div className="bsec influencer-builder">
+          <div className="bsec-head"><span className="bsec-badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="9" cy="8" r="3"/><path d="M3 20c0-3 2.5-5 6-5s6 2 6 5M16 7h5M18.5 4.5v5"/></svg></span><div><div className="bsec-eyebrow">Influencer attribution</div><div className="bsec-title">Promo-code partners</div></div><button type="button" className="btn btn-secondary btn-sm" onClick={addInfluencer}>Add influencer</button></div>
+          <p className="muted influencer-help">Add one or more influencers. Fidely matches their promo codes with Converty orders to measure acquired customers and delivered revenue.</p>
+          {influencers.length ? <div className="influencer-input-list">{influencers.map((entry, index) => <div className="influencer-input-row" key={entry.id}>
+            <div className="field"><label>Influencer name</label><input className="input" value={entry.name} placeholder={`Influencer ${index + 1}`} onChange={(event) => updateInfluencer(entry.id, { name: event.target.value })} /></div>
+            <div className="field"><label>Promo code</label><input className="input promo-input" value={entry.promoCode} placeholder="ADAM10" onChange={(event) => updateInfluencer(entry.id, { promoCode: event.target.value.toUpperCase().replace(/\s+/g, "") })} /></div>
+            <div className="field"><label>Budget (TND)</label><input className="input" type="number" min="0" value={entry.budget} onChange={(event) => updateInfluencer(entry.id, { budget: Number(event.target.value) || 0 })} /></div>
+            <button type="button" className="remove-influencer" aria-label={`Remove ${entry.name || `influencer ${index + 1}`}`} onClick={() => setInfluencers((current) => current.filter((item) => item.id !== entry.id))}>×</button>
+          </div>)}</div> : <button type="button" className="influencer-empty" onClick={addInfluencer}>No influencers added. Add a promo-code partner to track their results.</button>}
         </div>
 
         {/* WHO */}

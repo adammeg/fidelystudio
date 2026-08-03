@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { deliveredAt, normalizedStatus } from "../src/server/converty-sync";
+import { deliveredAt, normalizedStatus, promoSnapshot } from "../src/server/converty-sync";
 
 describe("Converty order mapping", () => {
   it.each([
@@ -34,5 +34,11 @@ describe("Converty order mapping", () => {
 
   it("does not invent a delivery date for a non-delivered order", () => {
     expect(deliveredAt({ _id: "1", status: "confirmed" })).toBeNull();
+  });
+
+  it("normalizes the documented Converty promo-code snapshot", () => {
+    expect(promoSnapshot({ _id: "1", total: { promoCode: { couponId: "coupon-1", code: " adam10 ", discountType: "percentage", discountValue: 10, amount: 8, freeShipping: true } } })).toEqual({
+      code: "ADAM10", couponId: "coupon-1", discountType: "percentage", discountValue: 10, amount: 8, freeShipping: true,
+    });
   });
 });

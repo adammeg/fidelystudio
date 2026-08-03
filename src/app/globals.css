@@ -343,7 +343,6 @@ tbody tr:hover { background: var(--surface-hover); }
 
 /* Features that are intentionally withheld until their Converty write-side
    contracts are complete. Routes are gated in proxy.ts as well. */
-a[href^="/influence"],
 a[href^="/widgets"] {
   display: none !important;
 }
@@ -1272,6 +1271,30 @@ tr,
 .integration-unavailable details p { margin-top: 7px; font-size: 11px; line-height: 1.55; }
 .empty-icon { width: 42px; height: 42px; display: grid; place-items: center; margin-bottom: 3px; border-radius: 12px; color: var(--primary); background: rgba(168,95,67,.1); }
 .empty-icon svg { width: 20px; }
+.influencer-help { margin: -4px 0 14px; font-size: 12px; }
+.influencer-input-list { display: grid; gap: 10px; }
+.influencer-input-row { display: grid; grid-template-columns: minmax(0,1.4fr) minmax(150px,1fr) minmax(120px,.7fr) 36px; gap: 10px; align-items: end; padding: 12px; border: 1px solid var(--border); border-radius: 12px; background: var(--background); }
+.influencer-input-row .field + .field { margin-top: 0; }
+.promo-input { text-transform: uppercase; letter-spacing: .04em; font-weight: 750; }
+.remove-influencer { width: 36px; height: 42px; border: 1px solid #ebcfca; border-radius: 10px; color: var(--danger); background: #fff8f6; font-size: 20px; cursor: pointer; }
+.influencer-empty { width: 100%; padding: 22px; border: 1px dashed #d9c9bc; border-radius: 12px; color: var(--text-secondary); background: var(--background); cursor: pointer; }
+.influencer-empty:hover { color: var(--primary); border-color: var(--primary); }
+.influencer-bars { display: grid; gap: 15px; padding: 20px; }
+.influencer-bar-row { display: grid; grid-template-columns: minmax(130px,.8fr) minmax(160px,3fr) 100px; gap: 16px; align-items: center; }
+.influencer-bar-row strong, .influencer-bar-row small { display: block; }
+.influencer-bar-row small { color: var(--text-muted); font-size: 10.5px; }
+.influencer-bar-track, .mini-revenue-bar { height: 9px; overflow: hidden; border-radius: 999px; background: var(--bg-sunken); }
+.influencer-bar-track i, .mini-revenue-bar i { display: block; height: 100%; border-radius: inherit; background: var(--primary); transition: width .35s ease-out; }
+.influencer-bar-row > b { text-align: right; font-variant-numeric: tabular-nums; }
+.influencer-campaign-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; padding: 16px; }
+.influencer-performance-card { padding: 16px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); }
+.influencer-card-head { display: flex; align-items: center; gap: 10px; }
+.influencer-card-head h4 { font-size: 14px; }
+.influencer-card-head .status-pill { margin-left: auto; }
+.mini-revenue-bar { margin: 17px 0 14px; }
+.influencer-performance-card dl { display: grid; grid-template-columns: repeat(4,1fr); gap: 8px; }
+.influencer-performance-card dt { color: var(--text-muted); font-size: 10px; }
+.influencer-performance-card dd { margin-top: 3px; font-size: 13px; font-weight: 750; }
 @media (max-width: 760px) {
   .admin-shell .topbar { position: relative; }
   .admin-shell .topbar::before { display: none; }
@@ -1287,6 +1310,14 @@ tr,
   .admin-merchant-card dt { color: var(--text-muted); font-size: 10px; }
   .admin-merchant-card dd { margin-top: 3px; font-size: 12px; font-weight: 700; }
   .admin-merchant-card > .btn, .admin-merchant-card > form, .admin-merchant-card form .btn { width: 100%; }
+}
+@media (max-width: 720px) {
+  .influencer-input-row { grid-template-columns: 1fr 1fr; }
+  .influencer-input-row .field:first-child { grid-column: 1 / -1; }
+  .remove-influencer { grid-column: 1 / -1; width: 100%; height: 36px; }
+  .influencer-bar-row { grid-template-columns: 1fr auto; }
+  .influencer-bar-track { grid-column: 1 / -1; grid-row: 2; }
+  .influencer-campaign-grid { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 720px) {

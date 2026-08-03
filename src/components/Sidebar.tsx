@@ -56,6 +56,11 @@ const mainNav: NavEntry[] = [
     icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 13l13-9-3 17-4-5-6-3z" /></svg>,
   },
   {
+    label: "Influencers",
+    href: "/influencers",
+    icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="9" cy="8" r="3"/><path d="M3 20c0-3.3 2.7-5 6-5s6 1.7 6 5M16 6h5M18.5 3.5v5M15 14h6M18 11v6" /></svg>,
+  },
+  {
     label: "Rewards",
     href: "/loyalty",
     icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 9h16v11H4zM3 6h18v4H3zM12 6v14M12 6c-4 0-5-5-1-4 2 .5 1 4 1 4zM12 6c4 0 5-5 1-4-2 .5-1 4-1 4z" /></svg>,

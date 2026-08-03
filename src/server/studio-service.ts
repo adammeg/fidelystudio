@@ -167,6 +167,7 @@ type CampaignRecord = {
   updatedAt?: Date | string;
   channels?: string[];
   segmentKey?: string | null;
+  influencers?: Array<{ influencer: unknown; name: string; promoCode: string; budget: number }>;
 };
 
 function campaignJson(campaign: CampaignRecord, metrics: { placed?: number; delivered?: number; earned?: number; spent?: number } = {}) {
@@ -188,7 +189,7 @@ function campaignJson(campaign: CampaignRecord, metrics: { placed?: number; deli
     updatedAt: campaign.updatedAt || null,
     channels: campaign.channels || ["whatsapp"],
     segmentKey: campaign.segmentKey || null,
-    influencers: [],
+    influencers: (campaign.influencers || []).map((entry) => ({ id: id(entry.influencer), handle: entry.name, promoCode: entry.promoCode, budget: entry.budget || 0, initial: entry.name.charAt(0).toUpperCase(), avatarBg: "#7C5A43" })),
     placed: metrics.placed || 0,
     delivered: metrics.delivered || 0,
     deliveredPct: metrics.placed ? Math.round(((metrics.delivered || 0) / metrics.placed) * 100) : 0,
@@ -384,19 +385,35 @@ export async function studioGet(userId: string, path: string, search = new URLSe
     const recipientCounts = await StudioCampaignRecipient.aggregate([
       { $match: { campaign: campaign._id } }, { $group: { _id: "$status", count: { $sum: 1 } } },
     ]);
-    const [orderTotals] = await StudioOrder.aggregate([{ $match: { user: new mongoose.Types.ObjectId(userId), attributedCampaign: campaign._id } }, { $group: { _id: null, placed: { $sum: 1 }, delivered: { $sum: { $cond: [{ $eq: ["$status", "delivered"] }, 1, 0] } }, earned: { $sum: { $cond: [{ $eq: ["$status", "delivered"] }, "$amount", 0] } }, spent: { $sum: { $cond: [{ $eq: ["$status", "delivered"] }, "$cost", 0] } } } }]);
+    const [orderRows, influencerTotals] = await Promise.all([
+      StudioOrder.aggregate([{ $match: { user: new mongoose.Types.ObjectId(userId), attributedCampaign: campaign._id } }, { $group: { _id: null, placed: { $sum: 1 }, delivered: { $sum: { $cond: [{ $eq: ["$status", "delivered"] }, 1, 0] } }, earned: { $sum: { $cond: [{ $eq: ["$status", "delivered"] }, "$amount", 0] } }, spent: { $sum: { $cond: [{ $eq: ["$status", "delivered"] }, "$cost", 0] } } } }]),
+      StudioOrder.aggregate([{ $match: { user: new mongoose.Types.ObjectId(userId), attributedCampaign: campaign._id, attributedInfluencer: { $ne: null } } }, { $group: { _id: "$attributedInfluencer", placed: { $sum: 1 }, delivered: { $sum: { $cond: [{ $eq: ["$status", "delivered"] }, 1, 0] } }, revenue: { $sum: { $cond: [{ $eq: ["$status", "delivered"] }, "$amount", 0] } }, customers: { $addToSet: "$customer" } } }]),
+    ]);
+    const orderTotals = orderRows[0];
     const totals = orderTotals || { placed: 0, delivered: 0, earned: 0, spent: 0 };
     return {
       campaign: campaignJson(campaign, totals),
       recipients: Object.fromEntries(recipientCounts.map((row) => [row._id, row.count])),
       totals: { ...totals, deliveredPct: totals.placed ? Math.round((totals.delivered / totals.placed) * 100) : 0 },
-      influencers: [],
+      influencers: (campaign.influencers || []).map((entry: { influencer: unknown; name: string; promoCode: string; budget: number }) => {
+        const metric = influencerTotals.find((row) => id(row._id) === id(entry.influencer));
+        const delivered = metric?.delivered || 0;
+        const revenue = metric?.revenue || 0;
+        return { id: id(entry.influencer), handle: entry.name, platform: "instagram", code: entry.promoCode, promoCode: entry.promoCode, budget: entry.budget || 0, link: null, avatarBg: "#7C5A43", commissionPct: 0, placed: metric?.placed || 0, delivered, deliveredPct: metric?.placed ? Math.round(delivered / metric.placed * 100) : 0, customers: metric?.customers?.length || 0, earned: revenue, revenue, commission: 0, paidOut: 0, toPay: 0, paid: true, result: delivered ? { label: "Generating customers", level: "pr" } : { label: "No attributed orders", level: "nd" } };
+      }),
     };
   }
   if (clean === "influencers") {
-    const influencers = await StudioInfluencer.find({ user: userId }).sort({ createdAt: -1 }).lean();
+    const [influencers, metrics, budgets] = await Promise.all([
+      StudioInfluencer.find({ user: userId }).sort({ createdAt: -1 }).lean(),
+      StudioOrder.aggregate([{ $match: { user: new mongoose.Types.ObjectId(userId), attributedInfluencer: { $ne: null } } }, { $group: { _id: "$attributedInfluencer", placed: { $sum: 1 }, delivered: { $sum: { $cond: [{ $eq: ["$status", "delivered"] }, 1, 0] } }, revenue: { $sum: { $cond: [{ $eq: ["$status", "delivered"] }, "$amount", 0] } }, customers: { $addToSet: "$customer" } } }]),
+      StudioCampaign.aggregate([{ $match: { user: new mongoose.Types.ObjectId(userId) } }, { $unwind: "$influencers" }, { $group: { _id: "$influencers.influencer", budget: { $sum: "$influencers.budget" } } }]),
+    ]);
     return {
-      influencers: influencers.map((influencer) => ({
+      influencers: influencers.map((influencer) => {
+        const metric = metrics.find((row) => id(row._id) === id(influencer._id));
+        const assignedBudget = budgets.find((row) => id(row._id) === id(influencer._id))?.budget || 0;
+        return ({
         id: id(influencer._id),
         handle: influencer.handle,
         platform: influencer.platform,
@@ -404,16 +421,18 @@ export async function studioGet(userId: string, path: string, search = new URLSe
         link: influencer.link,
         avatarBg: "#7C5A43",
         commissionPct: influencer.commissionPct,
-        placed: 0,
-        delivered: 0,
-        deliveredPct: 0,
-        earned: 0,
+        placed: metric?.placed || 0,
+        delivered: metric?.delivered || 0,
+        deliveredPct: metric?.placed ? Math.round((metric.delivered || 0) / metric.placed * 100) : 0,
+        customers: metric?.customers?.length || 0,
+        budget: assignedBudget,
+        earned: metric?.revenue || 0,
         commission: 0,
         paidOut: influencer.paidOut,
         toPay: 0,
         paid: true,
-        result: { label: "Needs data", level: "nd" },
-      })),
+        result: metric?.delivered ? { label: "Generating customers", level: "pr" } : { label: "Needs data", level: "nd" },
+      })}),
     };
   }
   if (clean === "referral") return { program: await config(userId, "referral", referralDefaults), stats: { totalReferrals: 0, rewarded: 0, pending: 0, revenue: 0, deliveredOrders: 0, conversionPct: 0 } };

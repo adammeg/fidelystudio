@@ -88,6 +88,7 @@ const CustomerSchema = new Schema(
     note: { type: String, default: null },
     tags: { type: [String], default: [] },
     lastDeliveredAt: { type: Date, default: null },
+    sourceFirstOrderAt: { type: Date, default: null },
     source: { type: Schema.Types.Mixed, default: { type: "direct" } },
     marketingConsent: {
       whatsapp: { type: Boolean, default: false },
@@ -122,6 +123,13 @@ const OrderSchema = new Schema(
     deliveredAt: { type: Date, default: null },
     sourceUpdatedAt: { type: Date, default: null },
     attributedCampaign: { type: Schema.Types.ObjectId, ref: "StudioCampaign", default: null, index: true },
+    attributedInfluencer: { type: Schema.Types.ObjectId, ref: "StudioInfluencer", default: null, index: true },
+    promoCode: { type: String, default: null, index: true },
+    promoCouponId: { type: String, default: null },
+    promoDiscountType: { type: String, default: null },
+    promoDiscountValue: { type: Number, default: 0 },
+    promoDiscountAmount: { type: Number, default: 0 },
+    promoFreeShipping: { type: Boolean, default: false },
   },
   { timestamps: true }
 );
@@ -147,6 +155,12 @@ const CampaignSchema = new Schema(
     attributionDays: { type: Number, default: 14 },
     audienceCount: { type: Number, default: 0 },
     eligibleCount: { type: Number, default: 0 },
+    influencers: [{
+      influencer: { type: Schema.Types.ObjectId, ref: "StudioInfluencer", required: true },
+      name: { type: String, required: true },
+      promoCode: { type: String, required: true },
+      budget: { type: Number, default: 0 },
+    }],
   },
   { timestamps: true }
 );
