@@ -9,6 +9,11 @@ const HIDDEN_FEATURE_PATHS = ["/influence", "/widgets"];
 
 export function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
+  // Files in /public are requested from the site root. They must bypass auth;
+  // otherwise image requests receive a redirect/HTML response and render broken.
+  if (/\.(?:png|jpe?g|gif|webp|avif|svg|ico)$/i.test(pathname)) {
+    return NextResponse.next();
+  }
   const token = req.cookies.get(SESSION_COOKIE)?.value;
   const isPublic = PUBLIC_PATHS.some(
     (p) => pathname === p || pathname.startsWith(p + "/")

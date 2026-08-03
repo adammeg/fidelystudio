@@ -12,7 +12,7 @@ export default function LandingPage() {
     <div className="landing">
       <header className="landing-nav">
         <Link className="landing-brand" href="/" aria-label="Fidely home">
-          <Image src="/complete-fidely-logo.png" width={132} height={45} alt="Fidely" priority unoptimized />
+          <Image src="complete-fidely-logo.png" width={132} height={45} alt="Fidely" priority unoptimized />
         </Link>
         <nav aria-label="Main navigation">
           <a href="#product">Product</a>
@@ -37,7 +37,7 @@ export default function LandingPage() {
           </h1>
           <p>
             Fidely turns your real Converty orders, deliveries, and customers into a
-            clear operating view—so you can see what sold, what delivered, and who
+            clear operating view so you can see what sold, what delivered, and who
             came back.
           </p>
           <div className="landing-actions">
